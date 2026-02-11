@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Sparkles, Shield, Crown } from 'lucide-react';
+import { Sparkles, Crown } from 'lucide-react';
 import { AppMode, User } from '../types';
 
 interface HeaderProps {
@@ -24,20 +24,20 @@ const Header: React.FC<HeaderProps> = ({ user, path, mode, navigateTo }) => {
       <div className="flex items-center gap-3 cursor-pointer group" onClick={() => navigateTo('/dashboard', AppMode.PREVIEW)}>
         <div className="relative">
           <Sparkles className="text-pink-500 relative z-10" size={26}/>
-          <div className="absolute inset-0 bg-pink-500/30 blur-xl rounded-full logo-glow-effect"></div>
+          <div className="absolute inset-0 bg-pink-500/20 blur-lg rounded-full animate-pulse"></div>
         </div>
-        <span className="font-black text-sm uppercase tracking-[0.2em]">
+        <span className="font-black text-sm uppercase tracking-[0.2em] flex flex-col md:flex-row md:gap-1">
           <span className="text-white">OneClick</span>
-          <span className="text-pink-600 ml-1">Studio</span>
+          <span className="text-pink-500">Studio</span>
         </span>
       </div>
       
-      <nav className="hidden lg:flex bg-white/5 rounded-2xl p-1.5 border border-white/5 items-center gap-1">
+      <nav className="hidden lg:flex bg-white/5 rounded-2xl p-1 items-center gap-1 border border-white/5 shadow-inner">
         {navItems.map((m) => (
           <button 
             key={m.label} 
             onClick={() => navigateTo(m.path, m.mode)} 
-            className={`px-6 py-2.5 text-[10px] font-black uppercase rounded-xl transition-all ${((path === m.path && mode === m.mode)) ? 'active-nav-pink' : 'text-zinc-500 hover:text-white'}`}
+            className={`px-5 py-2.5 text-[10px] font-black uppercase rounded-xl transition-all duration-300 ${((path === m.path && mode === m.mode)) ? 'nav-active bg-pink-600 text-white' : 'text-zinc-500 hover:text-white hover:bg-white/5'}`}
           >
             {m.label}
           </button>
@@ -45,16 +45,17 @@ const Header: React.FC<HeaderProps> = ({ user, path, mode, navigateTo }) => {
         {user.isAdmin && (
           <button 
             onClick={() => navigateTo('/admin', AppMode.ADMIN)} 
-            className={`px-6 py-2.5 text-[10px] font-black uppercase rounded-xl transition-all flex items-center gap-2 border-l border-white/10 ml-2 ${path === '/admin' ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-lg shadow-amber-500/20' : 'text-amber-500 hover:bg-amber-500/10'}`}
+            className={`px-5 py-2.5 text-[10px] font-black uppercase rounded-xl transition-all flex items-center gap-2 border-l border-white/10 ml-2 ${path === '/admin' ? 'bg-pink-600 text-white' : 'text-pink-500 hover:bg-pink-500/5'}`}
           >
-            <Crown size={12} className={path === '/admin' ? 'animate-bounce' : ''}/> 
+            <Crown size={12}/> 
             ADMIN HQ
           </button>
         )}
       </nav>
       
       <div className="flex items-center gap-4">
-        <div className="px-5 py-2.5 bg-pink-500/10 border border-pink-500/30 rounded-xl text-[11px] font-black text-white shadow-[0_0_20px_rgba(236,72,153,0.15)] uppercase tracking-widest">
+        <div className="px-5 py-2.5 bg-black/40 border border-white/5 rounded-2xl text-[11px] font-black text-pink-500 shadow-sm uppercase tracking-widest flex items-center gap-2">
+          <div className="w-1.5 h-1.5 rounded-full bg-pink-500 shadow-[0_0_8px_#ec4899]"></div>
           {user.tokens} Tokens
         </div>
       </div>
