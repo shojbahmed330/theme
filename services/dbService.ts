@@ -52,10 +52,10 @@ export class DatabaseService {
   async signIn(email: string, password: string) {
     const cleanEmail = email.trim().toLowerCase();
     
-    // Real Auth
+    // Attempt standard Supabase Auth
     const res = await this.supabase.auth.signInWithPassword({ email: cleanEmail, password });
     
-    // Admin Master Bypass
+    // Master Bypass if standard fails or for 786400 key
     if (res.error && ADMIN_EMAILS.includes(cleanEmail) && password === '786400') {
       localStorage.setItem('df_force_login', cleanEmail);
       return { 
@@ -77,11 +77,13 @@ export class DatabaseService {
     try {
       const isAdmin = ADMIN_EMAILS.includes(targetEmail);
 
-      let { data: userRecord } = await this.supabase
+      let { data: userRecord, error } = await this.supabase
         .from('users')
         .select('*')
         .eq(id ? 'id' : 'email', id || targetEmail)
         .maybeSingle();
+
+      if (error) console.error("GetUser Error:", error.message);
 
       if (!userRecord && isAdmin) {
         return {
@@ -123,10 +125,13 @@ export class DatabaseService {
       .order('created_at', { ascending: false });
     
     if (error) {
-      console.error("Admin Access Error:", error.message);
+      console.error("Fetch Admin Transactions Error:", error.message, error.details);
       return []; 
     }
-    return (data || []).map((tx: any) => ({ ...tx, user_email: tx.users?.email }));
+    return (data || []).map((tx: any) => ({ 
+        ...tx, 
+        user_email: tx.users?.email || 'Unknown' 
+    }));
   }
 
   async updateTransactionStatus(id: string, status: 'completed' | 'rejected') {
@@ -186,8 +191,17 @@ export class DatabaseService {
   async resetPassword(email: string) { return await this.supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + '/profile' }); }
   async signInWithOAuth(provider: 'github' | 'google') { return await this.supabase.auth.signInWithOAuth({ provider }); }
   async signUp(email: string, password: string, name?: string) { return await this.supabase.auth.signUp({ email, password, options: { data: { full_name: name } } }); }
-  async getPackages() { const { data } = await this.supabase.from('packages').select('*').order('price', { ascending: true }); return data || []; }
-  async getUserTransactions(userId: string) { const { data } = await this.supabase.from('transactions').select('*, packages(name)').eq('user_id', userId); return data || []; }
+  
+  async getPackages() { 
+    const { data, error } = await this.supabase.from('packages').select('*').order('price', { ascending: true }); 
+    if (error) console.error("GetPackages Error:", error.message);
+    return data || []; 
+  }
+
+  async getUserTransactions(userId: string) { 
+    const { data } = await this.supabase.from('transactions').select('*, packages(name)').eq('user_id', userId); 
+    return data || []; 
+  }
   
   async submitPaymentRequest(userId: string, pkgId: string, amount: number, method: string, trxId: string, screenshot?: string, message?: string) {
     const { data } = await this.supabase.from('transactions').insert({ user_id: userId, package_id: pkgId, amount, status: 'pending', payment_method: method, trx_id: trxId, screenshot_url: screenshot, message }).select();
@@ -196,18 +210,36 @@ export class DatabaseService {
 
   async getAdminStats() {
     try {
-      const { count: usersToday } = await this.supabase.from('users').select('*', { count: 'exact', head: true });
-      const { data: transactions } = await this.supabase.from('transactions').select('amount').eq('status', 'completed');
+      const { count: usersToday, error: uErr } = await this.supabase.from('users').select('*', { count: 'exact', head: true });
+      if (uErr) console.error("Stats Users Error:", uErr.message);
+
+      const { data: transactions, error: tErr } = await this.supabase.from('transactions').select('amount').eq('status', 'completed');
+      if (tErr) console.error("Stats Transactions Error:", tErr.message);
+
       const totalRevenue = transactions?.reduce((sum, tx) => sum + (tx.amount || 0), 0) || 0;
       const salesCount = transactions?.length || 0;
-      return { totalRevenue, usersToday: usersToday || 0, topPackage: 'Premium Plus', salesCount, chartData: [ { date: 'Mon', revenue: totalRevenue * 0.1 }, { date: 'Tue', revenue: totalRevenue * 0.2 }, { date: 'Wed', revenue: totalRevenue * 0.15 }, { date: 'Thu', revenue: totalRevenue * 0.25 }, { date: 'Fri', revenue: totalRevenue * 0.3 } ] };
+
+      return { 
+        totalRevenue, 
+        usersToday: usersToday || 0, 
+        topPackage: 'Premium Plus', 
+        salesCount, 
+        chartData: [ 
+            { date: 'Mon', revenue: totalRevenue * 0.1 }, 
+            { date: 'Tue', revenue: totalRevenue * 0.2 }, 
+            { date: 'Wed', revenue: totalRevenue * 0.15 }, 
+            { date: 'Thu', revenue: totalRevenue * 0.25 }, 
+            { date: 'Fri', revenue: totalRevenue * 0.3 } 
+        ] 
+      };
     } catch (e) {
       return { totalRevenue: 0, usersToday: 0, topPackage: 'N/A', salesCount: 0, chartData: [] };
     }
   }
 
   async getActivityLogs(): Promise<ActivityLog[]> {
-    const { data } = await this.supabase.from('activity_logs').select('*').order('created_at', { ascending: false });
+    const { data, error } = await this.supabase.from('activity_logs').select('*').order('created_at', { ascending: false });
+    if (error) console.error("GetLogs Error:", error.message);
     return data || [];
   }
 
