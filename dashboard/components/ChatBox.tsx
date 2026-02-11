@@ -50,7 +50,7 @@ const Questionnaire: React.FC<{
           const opt = question.options.find(o => o.id === ans);
           text = opt ? opt.label : (ans === 'other' ? `Other: ${otherText}` : 'N/A');
         } else {
-          text = (ans || []).map((id: string) => question.options.find(o => o.id === id)?.label).join(', ');
+          text = (ans || []).map((id: string) => question.options.find(o => id === id)?.label).join(', ');
         }
         return `${question.text.replace('?', '')}: ${text}`;
       }).join('\n');
@@ -168,10 +168,10 @@ const ChatBox: React.FC<ChatBoxProps> = ({
   };
 
   return (
-    <section className={`w-full lg:w-[450px] border-r border-white/5 flex flex-col bg-black/40 h-full relative ${mobileTab === 'preview' ? 'hidden lg:flex' : 'flex'}`}>
+    <section className={`w-full lg:w-[520px] border-r border-white/5 flex flex-col bg-black/40 h-full relative ${mobileTab === 'preview' ? 'hidden lg:flex' : 'flex'}`}>
       <div 
         ref={scrollRef}
-        className="flex-1 p-6 overflow-y-auto space-y-10 pb-40 scroll-smooth custom-scrollbar"
+        className="flex-1 p-6 overflow-y-auto space-y-10 pt-20 md:pt-6 pb-40 scroll-smooth custom-scrollbar"
       >
         {messages.length > 0 ? messages.map((m, idx) => (
           <div 
