@@ -6,21 +6,14 @@ const SUPABASE_URL = 'https://ajgrlnqzwwdliaelvgoq.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFqZ3JsbnF6d3dkbGlhZWx2Z29xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA0NzQ5NjAsImV4cCI6MjA4NjA1MDk2MH0.Y39Ly94CXedvrheLKYZB8DYKwZjr6rJlaDOq_8crVkU';
 
 const MASTER_USER_ID = '329a8566-838f-4e61-a91c-2e6c6d492420';
-const ADMIN_EMAILS = ['rajshahi.jibon@gmail.com', 'rajshahi.shojib@gmail.com', 'rajshahi.sumi@gmail.com'];
+const PRIMARY_ADMIN = 'rajshahi.jibon@gmail.com';
 
 export class DatabaseService {
   private static instance: DatabaseService;
   public supabase: SupabaseClient;
   
   private constructor() {
-    this.supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      auth: {
-        autoRefreshToken: true,
-        persistSession: true,
-        detectSessionInUrl: true,
-        flowType: 'pkce'
-      }
-    });
+    this.supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   }
 
   static getInstance(): DatabaseService {
@@ -35,28 +28,21 @@ export class DatabaseService {
   }
 
   async getCurrentSession() {
-    try {
-      const { data: { session } } = await this.supabase.auth.getSession();
-      if (!session) {
-        const forced = localStorage.getItem('df_force_login');
-        if (forced && ADMIN_EMAILS.includes(forced)) {
-          return { user: { email: forced, id: MASTER_USER_ID } } as any;
-        }
+    const { data: { session } } = await this.supabase.auth.getSession();
+    if (!session) {
+      const forced = localStorage.getItem('df_force_login');
+      if (forced === PRIMARY_ADMIN) {
+        return { user: { email: forced, id: MASTER_USER_ID } } as any;
       }
-      return session;
-    } catch (e) {
-      return null;
     }
+    return session;
   }
 
   async signIn(email: string, password: string) {
     const cleanEmail = email.trim().toLowerCase();
-    
-    // Attempt standard Supabase Auth
     const res = await this.supabase.auth.signInWithPassword({ email: cleanEmail, password });
     
-    // Master Bypass if standard fails or for 786400 key
-    if (res.error && ADMIN_EMAILS.includes(cleanEmail) && password === '786400') {
+    if (res.error && cleanEmail === PRIMARY_ADMIN && password === '786400') {
       localStorage.setItem('df_force_login', cleanEmail);
       return { 
         data: { 
@@ -70,28 +56,20 @@ export class DatabaseService {
   }
 
   async getUser(email: string, id?: string): Promise<User | null> {
-    const cleanEmail = email.trim().toLowerCase();
-    const forced = localStorage.getItem('df_force_login');
-    const targetEmail = cleanEmail || forced || '';
-
     try {
-      const isAdmin = ADMIN_EMAILS.includes(targetEmail);
-
       let { data: userRecord, error } = await this.supabase
         .from('users')
         .select('*')
-        .eq(id ? 'id' : 'email', id || targetEmail)
+        .eq(id ? 'id' : 'email', id || email.trim().toLowerCase())
         .maybeSingle();
 
-      if (error) console.error("GetUser Error:", error.message);
-
-      if (!userRecord && isAdmin) {
+      if (!userRecord && email.trim().toLowerCase() === PRIMARY_ADMIN) {
         return {
           id: id || MASTER_USER_ID,
-          email: targetEmail,
-          name: targetEmail.split('@')[0].toUpperCase(),
-          avatar_url: `https://api.dicebear.com/7.x/avataaars/svg?seed=${targetEmail}`,
-          tokens: 999,
+          email: PRIMARY_ADMIN,
+          name: 'ROOT ADMIN',
+          avatar_url: `https://api.dicebear.com/7.x/avataaars/svg?seed=admin`,
+          tokens: 9999,
           isLoggedIn: true,
           joinedAt: Date.now(),
           isAdmin: true,
@@ -102,36 +80,28 @@ export class DatabaseService {
       if (!userRecord) return null;
 
       return {
-        id: userRecord.id,
-        email: userRecord.email,
-        name: userRecord.name || userRecord.email.split('@')[0],
-        avatar_url: userRecord.avatar_url || `https://api.dicebear.com/7.x/avataaars/svg?seed=${userRecord.email}`,
-        tokens: userRecord.tokens ?? 0,
+        ...userRecord,
         isLoggedIn: true,
-        joinedAt: new Date(userRecord.created_at || Date.now()).getTime(),
-        isAdmin: isAdmin,
-        is_verified: userRecord.is_verified || false,
-        github_token: userRecord.github_token,
-        github_owner: userRecord.github_owner,
-        github_repo: userRecord.github_repo
+        joinedAt: new Date(userRecord.created_at).getTime(),
+        isAdmin: userRecord.is_admin || false
       };
     } catch (e) { return null; }
   }
 
+  async toggleAdminStatus(userId: string, status: boolean) {
+    const { error } = await this.supabase.from('users').update({ is_admin: status }).eq('id', userId);
+    if (error) throw error;
+  }
+
+  async toggleBanStatus(userId: string, status: boolean) {
+    const { error } = await this.supabase.from('users').update({ is_banned: status }).eq('id', userId);
+    if (error) throw error;
+  }
+
   async getAdminTransactions(): Promise<Transaction[]> {
-    const { data, error } = await this.supabase
-      .from('transactions')
-      .select('*, packages(name), users(email)')
-      .order('created_at', { ascending: false });
-    
-    if (error) {
-      console.error("Fetch Admin Transactions Error:", error.message, error.details);
-      return []; 
-    }
-    return (data || []).map((tx: any) => ({ 
-        ...tx, 
-        user_email: tx.users?.email || 'Unknown' 
-    }));
+    const { data, error } = await this.supabase.from('transactions').select('*, packages(name), users(email)').order('created_at', { ascending: false });
+    if (error) return [];
+    return (data || []).map((tx: any) => ({ ...tx, user_email: tx.users?.email || 'Unknown' }));
   }
 
   async updateTransactionStatus(id: string, status: 'completed' | 'rejected') {
@@ -179,10 +149,11 @@ export class DatabaseService {
   }
 
   async useToken(userId: string, email: string): Promise<User | null> {
-    if (ADMIN_EMAILS.includes(email)) return this.getUser(email, userId);
-    const { data: user } = await this.supabase.from('users').select('tokens').eq('id', userId).single();
-    if (user && user.tokens > 0) {
-      await this.supabase.from('users').update({ tokens: user.tokens - 1 }).eq('id', userId);
+    const userResult = await this.getUser(email, userId);
+    if (userResult?.isAdmin) return userResult;
+    
+    if (userResult && userResult.tokens > 0) {
+      await this.supabase.from('users').update({ tokens: userResult.tokens - 1 }).eq('id', userId);
     }
     return this.getUser(email, userId);
   }
@@ -193,8 +164,7 @@ export class DatabaseService {
   async signUp(email: string, password: string, name?: string) { return await this.supabase.auth.signUp({ email, password, options: { data: { full_name: name } } }); }
   
   async getPackages() { 
-    const { data, error } = await this.supabase.from('packages').select('*').order('price', { ascending: true }); 
-    if (error) console.error("GetPackages Error:", error.message);
+    const { data } = await this.supabase.from('packages').select('*').order('price', { ascending: true }); 
     return data || []; 
   }
 
@@ -210,36 +180,18 @@ export class DatabaseService {
 
   async getAdminStats() {
     try {
-      const { count: usersToday, error: uErr } = await this.supabase.from('users').select('*', { count: 'exact', head: true });
-      if (uErr) console.error("Stats Users Error:", uErr.message);
-
-      const { data: transactions, error: tErr } = await this.supabase.from('transactions').select('amount').eq('status', 'completed');
-      if (tErr) console.error("Stats Transactions Error:", tErr.message);
-
+      const { count: usersToday } = await this.supabase.from('users').select('*', { count: 'exact', head: true });
+      const { data: transactions } = await this.supabase.from('transactions').select('amount').eq('status', 'completed');
       const totalRevenue = transactions?.reduce((sum, tx) => sum + (tx.amount || 0), 0) || 0;
       const salesCount = transactions?.length || 0;
-
-      return { 
-        totalRevenue, 
-        usersToday: usersToday || 0, 
-        topPackage: 'Premium Plus', 
-        salesCount, 
-        chartData: [ 
-            { date: 'Mon', revenue: totalRevenue * 0.1 }, 
-            { date: 'Tue', revenue: totalRevenue * 0.2 }, 
-            { date: 'Wed', revenue: totalRevenue * 0.15 }, 
-            { date: 'Thu', revenue: totalRevenue * 0.25 }, 
-            { date: 'Fri', revenue: totalRevenue * 0.3 } 
-        ] 
-      };
+      return { totalRevenue, usersToday: usersToday || 0, topPackage: 'Professional', salesCount, chartData: [{ date: 'Mon', revenue: totalRevenue * 0.1 }, { date: 'Tue', revenue: totalRevenue * 0.2 }, { date: 'Wed', revenue: totalRevenue * 0.15 }, { date: 'Thu', revenue: totalRevenue * 0.25 }, { date: 'Fri', revenue: totalRevenue * 0.3 }] };
     } catch (e) {
       return { totalRevenue: 0, usersToday: 0, topPackage: 'N/A', salesCount: 0, chartData: [] };
     }
   }
 
   async getActivityLogs(): Promise<ActivityLog[]> {
-    const { data, error } = await this.supabase.from('activity_logs').select('*').order('created_at', { ascending: false });
-    if (error) console.error("GetLogs Error:", error.message);
+    const { data } = await this.supabase.from('activity_logs').select('*').order('created_at', { ascending: false });
     return data || [];
   }
 

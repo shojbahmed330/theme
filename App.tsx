@@ -13,6 +13,7 @@ import MobileNav from './layout/MobileNav.tsx';
 // View Imports
 import ScanPage from './biometric/ScanPage.tsx';
 import AuthPage from './auth/AuthPage.tsx';
+import AdminLoginPage from './auth/AdminLoginPage.tsx'; // Import Admin Login
 import AdminPanel from './admin/AdminPanel.tsx';
 import ShopView from './shop/ShopView.tsx';
 import ProfileView from './profile/ProfileView.tsx';
@@ -58,15 +59,13 @@ const App: React.FC = () => {
     const handlePopState = () => setPath(window.location.pathname);
     window.addEventListener('popstate', handlePopState);
     const failsafeShowTimer = setTimeout(() => setShowFailsafe(true), 4000);
-    const forceStopTimer = setTimeout(() => setAuthLoading(false), 8500);
-
+    
     db.getPackages().then(setPackages);
     if (user) db.getUserTransactions(user.id).then(setUserTransactions);
 
     return () => {
       window.removeEventListener('popstate', handlePopState);
       clearTimeout(failsafeShowTimer);
-      clearTimeout(forceStopTimer);
     };
   }, [user]);
 
@@ -110,11 +109,10 @@ const App: React.FC = () => {
   const handleApprovePayment = async (txId: string) => {
     try {
         const tx = await db.updateTransactionStatus(txId, 'completed');
-        // Find package to get token count
         const pkg = packages.find(p => p.id === tx.package_id);
         if (pkg) {
             await db.addUserTokens(tx.user_id, pkg.tokens);
-            alert("Payment Approved! Tokens added to user account.");
+            alert("Payment Approved! Tokens added.");
         }
     } catch (e: any) { alert(e.message); }
   };
@@ -132,22 +130,36 @@ const App: React.FC = () => {
     try {
       const { error } = await db.supabase.auth.signInWithPassword({ email: user.email, password: oldPassword });
       if (error) { alert('Old password incorrect.'); return; }
-      await db.updatePassword(newPass); alert("Password updated successfully!");
+      await db.updatePassword(newPass); alert("Password updated!");
       setOldPassword(''); setNewPass('');
-    } catch (e: any) { alert(e.message || "Failed to update password"); } finally { setIsUpdatingPass(false); }
+    } catch (e: any) { alert(e.message); } finally { setIsUpdatingPass(false); }
   };
 
   if (authLoading) return (
     <div className="h-screen w-full flex flex-col items-center justify-center bg-[#09090b] text-indigo-500 gap-8">
       <Loader2 className="animate-spin text-pink-500" size={50}/>
-      {showFailsafe && (
-        <button onClick={() => { setAuthLoading(false); navigateTo('/login'); }} className="mt-6 flex items-center gap-2 px-6 py-3 bg-white/5 border border-white/10 rounded-2xl text-[10px] font-black uppercase text-pink-500 transition-all">
-          <ArrowLeft size={14}/> Back to Login Terminal
-        </button>
-      )}
     </div>
   );
 
+  // ADMIN PATH HANDLING
+  if (path === '/admin') {
+    if (!user || !user.isAdmin) {
+      return <AdminLoginPage onLoginSuccess={(u) => { setUser(u); navigateTo('/admin', AppMode.ADMIN); }} />;
+    }
+    return (
+      <div className="h-[100dvh] flex flex-col text-slate-100 overflow-hidden">
+        <Header user={user} path={path} mode={mode} navigateTo={navigateTo} />
+        <AdminPanel 
+          user={user} 
+          onApprovePayment={handleApprovePayment} 
+          onRejectPayment={handleRejectPayment}
+        />
+        <MobileNav path={path} mode={mode} user={user} navigateTo={navigateTo} />
+      </div>
+    );
+  }
+
+  // STANDARD USER HANDLING
   if (!user) {
     if (showScan) return <ScanPage onFinish={() => setShowScan(false)} />;
     return <AuthPage onLoginSuccess={(u) => { setUser(u); navigateTo('/profile', AppMode.PROFILE); }} />;
@@ -158,21 +170,9 @@ const App: React.FC = () => {
       <Header user={user} path={path} mode={mode} navigateTo={navigateTo} />
       
       <main className="flex-1 flex overflow-hidden relative">
-        <input 
-            type="file" 
-            ref={fileInputRef} 
-            className="hidden" 
-            accept="image/*" 
-            onChange={onScreenshotFileChange} 
-        />
+        <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={onScreenshotFileChange} />
         
-        {path === '/admin' && user.isAdmin ? (
-          <AdminPanel 
-            user={user} 
-            onApprovePayment={handleApprovePayment} 
-            onRejectPayment={handleRejectPayment}
-          />
-        ) : path === '/shop' ? (
+        {path === '/shop' ? (
           <ShopView 
             packages={packages} paymentStep={paymentStep} setPaymentStep={setPaymentStep}
             selectedPkg={selectedPkg} setSelectedPkg={setSelectedPkg} paymentMethod={paymentMethod}
@@ -191,15 +191,11 @@ const App: React.FC = () => {
         ) : path === '/projects' ? (
           <ProjectsView 
             userId={user.id} currentFiles={projectFiles}
-            onLoadProject={(p) => { 
-              loadProject(p);
-              navigateTo('/dashboard', AppMode.PREVIEW); 
-            }}
+            onLoadProject={(p) => { loadProject(p); navigateTo('/dashboard', AppMode.PREVIEW); }}
             onSaveCurrent={(name) => db.saveProject(user.id, name, projectFiles, projectConfig)}
             onCreateNew={(name) => {
-              const defaultFiles = { 'index.html': '<div style="background:#09090b; color:#f4f4f5; height:100vh; display:flex; align-items:center; justify-content:center; font-family:sans-serif; text-align:center; padding: 20px;"><h1>' + name + '</h1></div>' };
-              const defaultConfig = { appName: name, packageName: 'com.' + name.toLowerCase().replace(/\s+/g, '.') };
-              return db.saveProject(user.id, name, defaultFiles, defaultConfig);
+              const defaultFiles = { 'index.html': '<h1>' + name + '</h1>' };
+              return db.saveProject(user.id, name, defaultFiles, { appName: name, packageName: 'com.' + name.toLowerCase() });
             }}
           />
         ) : (
