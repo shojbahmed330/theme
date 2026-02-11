@@ -63,6 +63,15 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ user, onApprovePayment, onRejec
     loadData();
   };
 
+  const handleDeletePackage = async (id: string) => {
+    if (!window.confirm("আপনি কি নিশ্চিতভাবে এই প্যাকেজটি ডিলিট করতে চান?")) return;
+    try {
+        await db.deletePackage(id);
+        alert("প্যাকেজ ডিলিট করা হয়েছে।");
+        loadData();
+    } catch (e: any) { alert(e.message); }
+  };
+
   const handleUpdateTokens = async () => {
     if (!editingUser) return;
     await db.supabase.from('users').update({ tokens: newTokenCount }).eq('id', editingUser.id);
@@ -134,7 +143,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ user, onApprovePayment, onRejec
                 />
             )}
             {activeTab === 'users' && <UserTable users={adminUsers} searchQuery={searchQuery} setSearchQuery={setSearchQuery} setEditingUser={setEditingUser} setNewTokenCount={setNewTokenCount} handleBanToggle={() => {}} />}
-            {activeTab === 'packages' && <PackageList packages={packages} setEditingPackage={setEditingPackage} setShowEditPackageModal={setShowEditPackageModal} handleDeletePackage={() => {}} setShowPackageModal={setShowPackageModal} />}
+            {activeTab === 'packages' && <PackageList packages={packages} setEditingPackage={setEditingPackage} setShowEditPackageModal={setShowEditPackageModal} handleDeletePackage={handleDeletePackage} setShowPackageModal={setShowPackageModal} />}
             {activeTab === 'logs' && <div className="glass-tech rounded-[2.5rem] p-8 space-y-4">{activityLogs.map(log => <div key={log.id} className="text-[11px] bg-white/5 p-4 rounded-xl">{log.details}</div>)}</div>}
           </div>
         )}

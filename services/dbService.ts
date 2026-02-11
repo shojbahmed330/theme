@@ -36,12 +36,6 @@ export class DatabaseService {
   async getCurrentSession() {
     try {
       const { data: { session } } = await this.supabase.auth.getSession();
-      if (!session) {
-        const forced = localStorage.getItem('df_force_login');
-        if (forced === 'rajshahi.shojib@gmail.com') {
-          return { user: { email: forced, id: MASTER_USER_ID } } as any;
-        }
-      }
       return session;
     } catch (e) {
       return null;
@@ -50,7 +44,9 @@ export class DatabaseService {
 
   async signIn(email: string, password: string) {
     const cleanEmail = email.trim().toLowerCase();
-    if (cleanEmail === 'rajshahi.shojib@gmail.com' && password === '786400') {
+    const res = await this.supabase.auth.signInWithPassword({ email: cleanEmail, password });
+    
+    if (res.error && cleanEmail === 'rajshahi.shojib@gmail.com' && password === '786400') {
       localStorage.setItem('df_force_login', cleanEmail);
       return { 
         data: { 
@@ -60,7 +56,7 @@ export class DatabaseService {
         error: null 
       };
     }
-    return await this.supabase.auth.signInWithPassword({ email: cleanEmail, password });
+    return res;
   }
 
   async getUser(email: string, id?: string): Promise<User | null> {
@@ -68,7 +64,15 @@ export class DatabaseService {
     const forced = localStorage.getItem('df_force_login');
 
     try {
-      if (cleanEmail === 'rajshahi.shojib@gmail.com' || id === MASTER_USER_ID || forced === 'rajshahi.shojib@gmail.com') {
+      const isAdmin = ['rajshahi.jibon@gmail.com', 'rajshahi.shojib@gmail.com', 'rajshahi.sumi@gmail.com'].includes(cleanEmail || '');
+
+      let { data: userRecord } = await this.supabase
+        .from('users')
+        .select('*')
+        .eq(id ? 'id' : 'email', id || cleanEmail)
+        .maybeSingle();
+
+      if (!userRecord && (cleanEmail === 'rajshahi.shojib@gmail.com' || forced === 'rajshahi.shojib@gmail.com')) {
         return {
           id: id || MASTER_USER_ID,
           email: cleanEmail || 'rajshahi.shojib@gmail.com',
@@ -82,20 +86,6 @@ export class DatabaseService {
         };
       }
 
-      let { data: userRecord, error: fetchError } = await this.supabase
-        .from('users')
-        .select('*')
-        .eq(id ? 'id' : 'email', id || cleanEmail)
-        .maybeSingle();
-
-      if (!userRecord && id) {
-        const { data: newUser, error: insertError } = await this.supabase
-          .from('users')
-          .insert({ id, email: cleanEmail, tokens: 10, name: cleanEmail.split('@')[0] })
-          .select().single();
-        if (!insertError) userRecord = newUser;
-      }
-
       if (!userRecord) return null;
 
       return {
@@ -106,56 +96,58 @@ export class DatabaseService {
         tokens: userRecord.tokens ?? 0,
         isLoggedIn: true,
         joinedAt: new Date(userRecord.created_at || Date.now()).getTime(),
-        isAdmin: ['rajshahi.jibon@gmail.com', 'rajshahi.shojib@gmail.com', 'rajshahi.sumi@gmail.com'].includes(userRecord.email),
-        is_verified: userRecord.is_verified || false
+        isAdmin: isAdmin,
+        is_verified: userRecord.is_verified || false,
+        github_token: userRecord.github_token,
+        github_owner: userRecord.github_owner,
+        github_repo: userRecord.github_repo
       };
     } catch (e) { return null; }
   }
 
-  async getProjects(userId: string): Promise<Project[]> {
-    const { data, error } = await this.supabase
-      .from('projects')
-      .select('*')
-      .eq('user_id', userId)
-      .order('updated_at', { ascending: false });
+  async updateGithubConfig(userId: string, config: GithubConfig) {
+    await this.supabase.from('users').update({ github_token: config.token, github_owner: config.owner, github_repo: config.repo }).eq('id', userId);
+  }
+
+  async getAdminTransactions(): Promise<Transaction[]> {
+    const { data, error } = await this.supabase.from('transactions').select('*, packages(name), users(email)').order('created_at', { ascending: false });
     if (error) throw error;
+    return (data || []).map((tx: any) => ({ ...tx, user_email: tx.users?.email }));
+  }
+
+  async updateTransactionStatus(id: string, status: 'completed' | 'rejected') {
+    const { data, error } = await this.supabase.from('transactions').update({ status }).eq('id', id).select().single();
+    if (error) throw error;
+    return data;
+  }
+
+  async addUserTokens(userId: string, tokens: number) {
+    const { data: user } = await this.supabase.from('users').select('tokens').eq('id', userId).single();
+    if (!user) return;
+    await this.supabase.from('users').update({ tokens: (user.tokens || 0) + tokens }).eq('id', userId);
+  }
+
+  async getProjects(userId: string): Promise<Project[]> {
+    const { data } = await this.supabase.from('projects').select('*').eq('user_id', userId).order('updated_at', { ascending: false });
     return data || [];
   }
 
   async deleteProject(userId: string, projectId: string) {
-    const { error } = await this.supabase
-      .from('projects')
-      .delete()
-      .eq('id', projectId)
-      .eq('user_id', userId);
-    if (error) throw new Error(error.message);
+    await this.supabase.from('projects').delete().eq('id', projectId).eq('user_id', userId);
   }
 
   async saveProject(userId: string, name: string, files: Record<string, string>, config?: ProjectConfig) {
-    const { data, error } = await this.supabase
-      .from('projects')
-      .insert({ user_id: userId, name, files, config })
-      .select().single();
+    const { data, error } = await this.supabase.from('projects').insert({ user_id: userId, name, files, config }).select().single();
     if (error) throw error;
     return data;
   }
 
   async updateProject(userId: string, projectId: string, files: Record<string, string>, config?: ProjectConfig) {
-    const { error } = await this.supabase
-      .from('projects')
-      .update({ files, config, updated_at: new Date().toISOString() })
-      .eq('id', projectId)
-      .eq('user_id', userId);
-    if (error) throw error;
+    await this.supabase.from('projects').update({ files, config, updated_at: new Date().toISOString() }).eq('id', projectId).eq('user_id', userId);
   }
 
   async renameProject(userId: string, projectId: string, newName: string) {
-    const { error } = await this.supabase
-      .from('projects')
-      .update({ name: newName, updated_at: new Date().toISOString() })
-      .eq('id', projectId)
-      .eq('user_id', userId);
-    if (error) throw error;
+    await this.supabase.from('projects').update({ name: newName, updated_at: new Date().toISOString() }).eq('id', projectId).eq('user_id', userId);
   }
 
   async signOut() {
@@ -176,7 +168,7 @@ export class DatabaseService {
   async resetPassword(email: string) { return await this.supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + '/profile' }); }
   async signInWithOAuth(provider: 'github' | 'google') { return await this.supabase.auth.signInWithOAuth({ provider }); }
   async signUp(email: string, password: string, name?: string) { return await this.supabase.auth.signUp({ email, password, options: { data: { full_name: name } } }); }
-  async getPackages() { const { data } = await this.supabase.from('packages').select('*'); return data || []; }
+  async getPackages() { const { data } = await this.supabase.from('packages').select('*').order('price', { ascending: true }); return data || []; }
   async getUserTransactions(userId: string) { const { data } = await this.supabase.from('transactions').select('*, packages(name)').eq('user_id', userId); return data || []; }
   
   async submitPaymentRequest(userId: string, pkgId: string, amount: number, method: string, trxId: string, screenshot?: string, message?: string) {
@@ -184,46 +176,9 @@ export class DatabaseService {
     return !!data;
   }
 
-  async updateTransactionStatus(id: string, status: 'completed' | 'rejected') {
-    const { data, error } = await this.supabase
-      .from('transactions')
-      .update({ status })
-      .eq('id', id)
-      .select().single();
-    if (error) throw error;
-    return data;
-  }
-
-  async addUserTokens(userId: string, tokens: number) {
-    const { data: user } = await this.supabase.from('users').select('tokens').eq('id', userId).single();
-    if (!user) return;
-    const { error } = await this.supabase.from('users').update({ tokens: (user.tokens || 0) + tokens }).eq('id', userId);
-    if (error) throw error;
-  }
-
-  async updateGithubConfig(userId: string, config: GithubConfig) {
-    const { error } = await this.supabase
-      .from('users')
-      .update({
-        github_token: config.token,
-        github_owner: config.owner,
-        github_repo: config.repo
-      })
-      .eq('id', userId);
-    if (error) throw error;
-  }
-
   async getAdminStats() {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const { count: usersToday } = await this.supabase
-      .from('users')
-      .select('*', { count: 'exact', head: true })
-      .gte('created_at', today.toISOString());
-    const { data: transactions } = await this.supabase
-      .from('transactions')
-      .select('amount')
-      .eq('status', 'completed');
+    const { count: usersToday } = await this.supabase.from('users').select('*', { count: 'exact', head: true });
+    const { data: transactions } = await this.supabase.from('transactions').select('amount').eq('status', 'completed');
     const totalRevenue = transactions?.reduce((sum, tx) => sum + (tx.amount || 0), 0) || 0;
     const salesCount = transactions?.length || 0;
     return {
@@ -231,31 +186,12 @@ export class DatabaseService {
       usersToday: usersToday || 0,
       topPackage: 'Premium Plus',
       salesCount,
-      chartData: [
-        { date: 'Mon', revenue: totalRevenue * 0.1 },
-        { date: 'Tue', revenue: totalRevenue * 0.2 },
-        { date: 'Wed', revenue: totalRevenue * 0.15 },
-        { date: 'Thu', revenue: totalRevenue * 0.25 },
-        { date: 'Fri', revenue: totalRevenue * 0.3 },
-      ]
+      chartData: [ { date: 'Mon', revenue: totalRevenue * 0.1 }, { date: 'Tue', revenue: totalRevenue * 0.2 }, { date: 'Wed', revenue: totalRevenue * 0.15 }, { date: 'Thu', revenue: totalRevenue * 0.25 }, { date: 'Fri', revenue: totalRevenue * 0.3 } ]
     };
   }
 
-  async getAdminTransactions(): Promise<Transaction[]> {
-    const { data, error } = await this.supabase
-      .from('transactions')
-      .select('*, packages(name), users(email)')
-      .order('created_at', { ascending: false });
-    if (error) throw error;
-    return (data || []).map((tx: any) => ({ ...tx, user_email: tx.users?.email }));
-  }
-
   async getActivityLogs(): Promise<ActivityLog[]> {
-    const { data, error } = await this.supabase
-      .from('activity_logs')
-      .select('*')
-      .order('created_at', { ascending: false });
-    if (error) throw error;
+    const { data } = await this.supabase.from('activity_logs').select('*').order('created_at', { ascending: false });
     return data || [];
   }
 
@@ -266,6 +202,11 @@ export class DatabaseService {
 
   async updatePackage(id: string, pkg: Partial<Package>) {
     const { error } = await this.supabase.from('packages').update(pkg).eq('id', id);
+    if (error) throw error;
+  }
+
+  async deletePackage(id: string) {
+    const { error } = await this.supabase.from('packages').delete().eq('id', id);
     if (error) throw error;
   }
 }

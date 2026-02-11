@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useRef } from 'react';
 import { Upload, RefreshCw, Loader2 } from 'lucide-react';
 import { Package } from '../../types';
 
@@ -10,16 +10,41 @@ interface PaymentFormProps {
   setPaymentForm: (form: any) => void;
   paymentSubmitting: boolean;
   handlePaymentSubmit: () => void;
-  handlePaymentScreenshotUpload: () => void;
+  handlePaymentScreenshotUpload: () => void; // This will now trigger the local ref
   setPaymentStep: (step: any) => void;
 }
 
 const PaymentForm: React.FC<PaymentFormProps> = ({ 
   paymentMethod, selectedPkg, paymentForm, setPaymentForm, paymentSubmitting, 
-  handlePaymentSubmit, handlePaymentScreenshotUpload, setPaymentStep 
+  handlePaymentSubmit, setPaymentStep 
 }) => {
+  const localFileRef = useRef<HTMLInputElement>(null);
+
+  const onFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPaymentForm({ ...paymentForm, screenshot: reader.result as string });
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const triggerUpload = () => {
+    if (localFileRef.current) localFileRef.current.click();
+  };
+
   return (
     <div className="max-w-md mx-auto glass-tech p-10 rounded-[3rem] animate-in zoom-in">
+      <input 
+        type="file" 
+        ref={localFileRef} 
+        className="hidden" 
+        accept="image/*" 
+        onChange={onFileChange} 
+      />
+      
       <h3 className="text-2xl font-black mb-2">{paymentMethod} <span className="text-pink-500">Gateway</span></h3>
       <div className="bg-pink-500/10 p-4 rounded-2xl border border-pink-500/20 mb-6">
         <p className="text-[11px] font-bold text-slate-300 uppercase tracking-wider mb-1">Send Money To (Personal):</p>
@@ -33,7 +58,7 @@ const PaymentForm: React.FC<PaymentFormProps> = ({
         </div>
         <div className="space-y-1">
            <label className="text-[10px] font-black uppercase text-slate-500 ml-2">Upload Screenshot (Proof)</label>
-           <div onClick={handlePaymentScreenshotUpload} className="w-full h-32 bg-black/40 border border-dashed border-white/20 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:bg-black/60 transition-all overflow-hidden relative">
+           <div onClick={triggerUpload} className="w-full h-32 bg-black/40 border border-dashed border-white/20 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:bg-black/60 transition-all overflow-hidden relative">
               {paymentForm.screenshot ? (
                 <>
                    <img src={paymentForm.screenshot} className="w-full h-full object-cover opacity-40" />
