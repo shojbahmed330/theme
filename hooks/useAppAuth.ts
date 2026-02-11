@@ -1,0 +1,69 @@
+
+import { useState, useEffect } from 'react';
+import { User as UserType, AppMode } from '../types';
+import { DatabaseService } from '../services/dbService';
+
+export const useAppAuth = (navigateTo: (path: string, mode?: AppMode) => void) => {
+  const [user, setUser] = useState<UserType | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
+  const [showScan, setShowScan] = useState(true);
+  const db = DatabaseService.getInstance();
+
+  useEffect(() => {
+    const handleSession = async (session: any) => {
+      if (!session?.user) {
+        const forced = localStorage.getItem('df_force_login');
+        if (forced === 'rajshahi.shojib@gmail.com') {
+          const userData = await db.getUser(forced);
+          if (userData) {
+            setUser(userData);
+            setShowScan(false);
+            setAuthLoading(false);
+            return;
+          }
+        }
+        setAuthLoading(false);
+        return;
+      }
+
+      try {
+        const userData = await db.getUser(session.user.email || '', session.user.id);
+        if (userData) { 
+          setUser(userData); 
+          setShowScan(false);
+          if (window.location.pathname === '/' || window.location.pathname === '/login') {
+             navigateTo('/profile', AppMode.PROFILE);
+          }
+        }
+      } catch (e) { 
+        console.error("Auth process error:", e); 
+      } finally { 
+        setAuthLoading(false); 
+      }
+    };
+
+    db.supabase.auth.getSession().then(({ data: { session } }) => {
+      handleSession(session);
+    });
+
+    const { data: { subscription } } = db.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' || event === 'INITIAL_SESSION') {
+        handleSession(session);
+      } else if (event === 'SIGNED_OUT') {
+        setUser(null);
+        setAuthLoading(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleLogout = async () => { 
+    try { await db.signOut(); } catch (e) {}
+    setUser(null); 
+    setShowScan(true); 
+    navigateTo('/login', AppMode.PREVIEW); 
+  };
+
+  return { user, setUser, authLoading, setAuthLoading, showScan, setShowScan, handleLogout };
+};

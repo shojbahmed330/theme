@@ -1,0 +1,9 @@
+{
+  "name": "my project deleted working 11 feb bikel 5 ta 46 Backup 2- BuildAPK 2",
+  "description": "AI-powered system for building hybrid Android apps with full hardware access.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ]
+}

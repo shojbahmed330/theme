@@ -1,0 +1,102 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>OneClick Studio | Professional AI Builder</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script>
+        window.process = window.process || { env: {} };
+    </script>
+    <style>
+        :root {
+            --primary: #ec4899; /* Pink 500 */
+            --primary-hover: #db2777; /* Pink 600 */
+            --bg-deep: #020203; /* Pure Black */
+            --bg-surface: #0a0a0c; /* Near Black */
+            --border-subtle: rgba(236, 72, 153, 0.15); /* Pink Tinted Border */
+            --text-main: #ffffff; /* Pure White */
+            --text-dim: #94a3b8; /* Slate 400 */
+            --bg-gradient: radial-gradient(at 0% 0%, #1a010c 0%, transparent 50%),
+                           radial-gradient(at 100% 100%, #110108 0%, transparent 50%),
+                           linear-gradient(to bottom, #020203, #08080a);
+        }
+        
+        body { 
+            font-family: 'Plus Jakarta Sans', sans-serif; 
+            background: var(--bg-gradient);
+            background-attachment: fixed;
+            color: var(--text-main);
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            overflow: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .glass-tech {
+            background: rgba(10, 10, 12, 0.7);
+            backdrop-filter: blur(30px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8);
+        }
+
+        .active-nav-pink {
+            background: var(--primary);
+            color: #ffffff !important;
+            box-shadow: 0 0 20px rgba(236, 72, 153, 0.4);
+            transform: translateY(-1px);
+        }
+
+        .code-scroll::-webkit-scrollbar { width: 4px; }
+        .code-scroll::-webkit-scrollbar-track { background: transparent; }
+        .code-scroll::-webkit-scrollbar-thumb { background: #ec4899; border-radius: 10px; }
+
+        @keyframes logo-glow {
+            0%, 100% { opacity: 0.4; filter: blur(10px); }
+            50% { opacity: 0.8; filter: blur(20px); }
+        }
+        .logo-glow-effect { animation: logo-glow 3s infinite ease-in-out; }
+
+        strong, b {
+            color: #f472b6; /* Pink 400 */
+            font-weight: 800;
+        }
+
+        .chat-user-bubble {
+            background: #ffffff;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #000000 !important;
+            font-weight: 600;
+        }
+
+        .chat-ai-bubble {
+            background: rgba(20, 2, 12, 0.6);
+            border: 1px solid rgba(236, 72, 153, 0.2);
+            backdrop-filter: blur(12px);
+        }
+    </style>
+<script type="importmap">
+{
+  "imports": {
+    "lucide-react": "https://esm.sh/lucide-react@^0.563.0",
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "react": "https://esm.sh/react@^19.2.4",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.39.0",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.39.7",
+    "recharts": "https://esm.sh/recharts@2.15.0?deps=react@19.2.4,react-dom@19.2.4",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.4",
+    "vite": "https://esm.sh/vite@^7.3.1"
+  }
+}
+</script>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="module" src="index.tsx"></script>
+</body>
+</html>
