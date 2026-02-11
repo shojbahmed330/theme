@@ -1,6 +1,6 @@
 
 import { createClient, SupabaseClient, AuthChangeEvent, Session } from '@supabase/supabase-js';
-import { User, Package, Transaction, ActivityLog, GithubConfig, Project } from '../types';
+import { User, Package, Transaction, ActivityLog, GithubConfig, Project, ProjectConfig } from '../types';
 
 const SUPABASE_URL = 'https://ajgrlnqzwwdliaelvgoq.supabase.co'; 
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFqZ3JsbnF6d3dkbGlhZWx2Z29xIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA0NzQ5NjAsImV4cCI6MjA4NjA1MDk2MH0.Y39Ly94CXedvrheLKYZB8DYKwZjr6rJlaDOq_8crVkU';
@@ -123,25 +123,30 @@ export class DatabaseService {
   }
 
   async deleteProject(userId: string, projectId: string) {
-    // We strictly filter by ID and UserID to satisfy RLS
     const { error } = await this.supabase
       .from('projects')
       .delete()
       .eq('id', projectId)
       .eq('user_id', userId);
-      
-    if (error) {
-      throw new Error(error.message);
-    }
+    if (error) throw new Error(error.message);
   }
 
-  async saveProject(userId: string, name: string, files: Record<string, string>) {
+  async saveProject(userId: string, name: string, files: Record<string, string>, config?: ProjectConfig) {
     const { data, error } = await this.supabase
       .from('projects')
-      .insert({ user_id: userId, name, files })
+      .insert({ user_id: userId, name, files, config })
       .select().single();
     if (error) throw error;
     return data;
+  }
+
+  async updateProject(userId: string, projectId: string, files: Record<string, string>, config?: ProjectConfig) {
+    const { error } = await this.supabase
+      .from('projects')
+      .update({ files, config, updated_at: new Date().toISOString() })
+      .eq('id', projectId)
+      .eq('user_id', userId);
+    if (error) throw error;
   }
 
   async renameProject(userId: string, projectId: string, newName: string) {
@@ -193,20 +198,16 @@ export class DatabaseService {
   async getAdminStats() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-
     const { count: usersToday } = await this.supabase
       .from('users')
       .select('*', { count: 'exact', head: true })
       .gte('created_at', today.toISOString());
-
     const { data: transactions } = await this.supabase
       .from('transactions')
       .select('amount')
       .eq('status', 'completed');
-
     const totalRevenue = transactions?.reduce((sum, tx) => sum + (tx.amount || 0), 0) || 0;
     const salesCount = transactions?.length || 0;
-
     return {
       totalRevenue,
       usersToday: usersToday || 0,
@@ -227,13 +228,8 @@ export class DatabaseService {
       .from('transactions')
       .select('*, packages(name), users(email)')
       .order('created_at', { ascending: false });
-    
     if (error) throw error;
-    
-    return (data || []).map((tx: any) => ({
-      ...tx,
-      user_email: tx.users?.email
-    }));
+    return (data || []).map((tx: any) => ({ ...tx, user_email: tx.users?.email }));
   }
 
   async getActivityLogs(): Promise<ActivityLog[]> {

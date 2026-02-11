@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Loader2, ArrowLeft } from 'lucide-react';
-import { AppMode, Package, Transaction } from './types.ts';
+import { AppMode, Package, Transaction, Project } from './types.ts';
 import { DatabaseService } from './services/dbService.ts';
 
 // Layout & Hook Imports
@@ -19,7 +19,6 @@ import ProfileView from './profile/ProfileView.tsx';
 import DashboardView from './dashboard/DashboardView.tsx';
 import ProjectsView from './projects/ProjectsView.tsx';
 
-// Fix: Imported React to resolve namespace issue on line 22
 const App: React.FC = () => {
   const [path, setPath] = useState(window.location.pathname);
   const [mode, setMode] = useState<AppMode>(AppMode.PREVIEW);
@@ -38,7 +37,7 @@ const App: React.FC = () => {
     messages, input, setInput, isGenerating, projectFiles, setProjectFiles,
     selectedFile, setSelectedFile, githubConfig, setGithubConfig, buildStatus, setBuildStatus,
     buildSteps, setBuildSteps, isDownloading, handleSend, handleBuildAPK, handleSecureDownload,
-    selectedImage, setSelectedImage, handleImageSelect
+    selectedImage, setSelectedImage, handleImageSelect, projectConfig, setProjectConfig, loadProject
   } = useAppLogic(user, setUser);
 
   const [packages, setPackages] = useState<Package[]>([]);
@@ -112,11 +111,6 @@ const App: React.FC = () => {
     return <AuthPage onLoginSuccess={(u) => { setUser(u); navigateTo('/profile', AppMode.PROFILE); }} />;
   }
 
-  if (path === '/admin' && !user.isAdmin) {
-    navigateTo('/profile', AppMode.PROFILE);
-    return null;
-  }
-
   return (
     <div className="h-[100dvh] flex flex-col text-slate-100 overflow-hidden">
       <Header user={user} path={path} mode={mode} navigateTo={navigateTo} />
@@ -144,13 +138,14 @@ const App: React.FC = () => {
           <ProjectsView 
             userId={user.id} currentFiles={projectFiles}
             onLoadProject={(p) => { 
-              setProjectFiles(p.files); 
+              loadProject(p);
               navigateTo('/dashboard', AppMode.PREVIEW); 
             }}
-            onSaveCurrent={(name) => db.saveProject(user.id, name, projectFiles)}
+            onSaveCurrent={(name) => db.saveProject(user.id, name, projectFiles, projectConfig)}
             onCreateNew={(name) => {
               const defaultFiles = { 'index.html': '<div style="background:#09090b; color:#f4f4f5; height:100vh; display:flex; align-items:center; justify-content:center; font-family:sans-serif; text-align:center; padding: 20px;"><h1>' + name + '</h1></div>' };
-              return db.saveProject(user.id, name, defaultFiles);
+              const defaultConfig = { appName: name, packageName: 'com.' + name.toLowerCase().replace(/\s+/g, '.') };
+              return db.saveProject(user.id, name, defaultFiles, defaultConfig);
             }}
           />
         ) : (
@@ -163,11 +158,12 @@ const App: React.FC = () => {
             handleSecureDownload={handleSecureDownload} isDownloading={isDownloading}
             selectedImage={selectedImage} setSelectedImage={setSelectedImage}
             handleImageSelect={handleImageSelect}
+            projectConfig={projectConfig} setProjectConfig={setProjectConfig}
           />
         )}
       </main>
 
-      <MobileNav path={path} mode={mode} navigateTo={navigateTo} />
+      <MobileNav path={path} mode={mode} user={user} navigateTo={navigateTo} />
     </div>
   );
 };

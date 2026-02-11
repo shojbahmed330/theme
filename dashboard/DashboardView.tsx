@@ -1,13 +1,14 @@
 
 import React from 'react';
-import { Rocket, Zap, Smartphone, MessageSquare } from 'lucide-react';
-import { AppMode, BuildStep } from '../types';
+import { Rocket, Zap, Smartphone, MessageSquare, Settings } from 'lucide-react';
+import { AppMode, BuildStep, ProjectConfig } from '../types';
 
 // Sub-components
 import ChatBox from './components/ChatBox';
 import MobilePreview from './components/MobilePreview';
 import CodeEditor from './components/CodeEditor';
 import BuildStatusDisplay from './components/BuildStatusDisplay.tsx';
+import AppConfigView from './components/AppConfigView';
 
 interface DashboardViewProps {
   mode: AppMode;
@@ -32,6 +33,8 @@ interface DashboardViewProps {
   selectedImage: any;
   setSelectedImage: (img: any) => void;
   handleImageSelect: (file: File) => void;
+  projectConfig: ProjectConfig;
+  setProjectConfig: (config: ProjectConfig) => void;
 }
 
 const DashboardView: React.FC<DashboardViewProps> = (props) => {
@@ -49,6 +52,7 @@ const DashboardView: React.FC<DashboardViewProps> = (props) => {
             projectFiles={props.projectFiles} setMode={props.setMode} 
             handleBuildAPK={props.handleBuildAPK} mobileTab={props.mobileTab}
             isGenerating={props.isGenerating}
+            projectConfig={props.projectConfig}
           />
         </div>
 
@@ -100,14 +104,27 @@ const DashboardView: React.FC<DashboardViewProps> = (props) => {
     );
   }
 
+  if (props.mode === AppMode.CONFIG) {
+    return (
+      <AppConfigView 
+        config={props.projectConfig} 
+        onUpdate={props.setProjectConfig} 
+        onBack={() => props.setMode(AppMode.EDIT)} 
+      />
+    );
+  }
+
   return (
     <div className="flex-1 flex flex-col md:flex-row overflow-hidden animate-in fade-in duration-500">
       {props.buildStatus.status === 'idle' ? (
-        <CodeEditor 
-          projectFiles={props.projectFiles} setProjectFiles={props.setProjectFiles} 
-          selectedFile={props.selectedFile} setSelectedFile={props.setSelectedFile} 
-          handleBuildAPK={props.handleBuildAPK} 
-        />
+        <div className="flex-1 flex overflow-hidden">
+          <CodeEditor 
+            projectFiles={props.projectFiles} setProjectFiles={props.setProjectFiles} 
+            selectedFile={props.selectedFile} setSelectedFile={props.setSelectedFile} 
+            handleBuildAPK={props.handleBuildAPK} 
+            onOpenConfig={() => props.setMode(AppMode.CONFIG)}
+          />
+        </div>
       ) : (
         <BuildStatusDisplay 
           status={props.buildStatus.status} message={props.buildStatus.message}

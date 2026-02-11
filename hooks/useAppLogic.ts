@@ -1,11 +1,12 @@
 
-import { useState, useRef } from 'react';
-import { GithubConfig, BuildStep, User as UserType } from '../types';
+import { useState, useRef, useEffect } from 'react';
+import { GithubConfig, BuildStep, User as UserType, ProjectConfig, Project } from '../types';
 import { GeminiService } from '../services/geminiService';
 import { DatabaseService } from '../services/dbService';
 import { GithubService } from '../services/githubService';
 
 export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null) => void) => {
+  const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
   const [messages, setMessages] = useState<any[]>([]);
   const [input, setInput] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -13,12 +14,19 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
   const [projectFiles, setProjectFiles] = useState<Record<string, string>>({
     'index.html': '<div style="background:#09090b; color:#f4f4f5; height:100vh; display:flex; align-items:center; justify-content:center; font-family:sans-serif; text-align:center; padding: 20px;"><h1>OneClick Studio</h1></div>'
   });
+  
+  const [projectConfig, setProjectConfig] = useState<ProjectConfig>({
+    appName: 'OneClickApp',
+    packageName: 'com.oneclick.studio'
+  });
+
   const [selectedFile, setSelectedFile] = useState('index.html');
   const [githubConfig, setGithubConfig] = useState<GithubConfig>({ 
     token: user?.github_token || '', 
     repo: user?.github_repo || '', 
     owner: user?.github_owner || '' 
   });
+  
   const [buildStatus, setBuildStatus] = useState<{ status: 'idle' | 'pushing' | 'building' | 'success' | 'error', message: string, apkUrl?: string, webUrl?: string }>({ status: 'idle', message: '' });
   const [buildSteps, setBuildSteps] = useState<BuildStep[]>([]);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -27,12 +35,17 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
   const db = DatabaseService.getInstance();
   const github = useRef(new GithubService());
 
+  const loadProject = (p: Project) => {
+    setCurrentProjectId(p.id);
+    setProjectFiles(p.files);
+    if (p.config) setProjectConfig(p.config);
+  };
+
   const handleSend = async (extraData?: string) => {
     if ((!input.trim() && !selectedImage && !extraData) || isGenerating) return;
     const text = extraData || input; 
     const currentImage = selectedImage;
 
-    // If answers are provided, update the last assistant message to show the summary instead of questions
     if (extraData) {
       setMessages(prev => {
         const lastAsstIdx = [...prev].reverse().findIndex(m => m.role === 'assistant' && m.questions);
@@ -57,11 +70,16 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
     }
 
     setIsGenerating(true);
-    
     try {
       const res = await gemini.current.generateWebsite(text, projectFiles, messages, currentImage ? { data: currentImage.data, mimeType: currentImage.mimeType } : undefined);
-      if (res.files) setProjectFiles(prev => ({ ...prev, ...res.files }));
-      
+      if (res.files) {
+        const newFiles = { ...projectFiles, ...res.files };
+        setProjectFiles(newFiles);
+        // Auto-save to cloud if project exists
+        if (user && currentProjectId) {
+           await db.updateProject(user.id, currentProjectId, newFiles, projectConfig);
+        }
+      }
       setMessages(prev => [...prev, { 
         id: (Date.now() + 1).toString(), 
         role: 'assistant', 
@@ -71,7 +89,6 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
         thought: res.thought,
         files: res.files 
       }]);
-
       if (user) { 
         const updated = await db.useToken(user.id, user.email); 
         if (updated) setUser(updated); 
@@ -83,15 +100,18 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
     }
   };
 
+  const saveProjectConfig = async (newConfig: ProjectConfig) => {
+    setProjectConfig(newConfig);
+    if (user && currentProjectId) {
+      await db.updateProject(user.id, currentProjectId, projectFiles, newConfig);
+    }
+  };
+
   const handleImageSelect = (file: File) => {
     const reader = new FileReader();
     reader.onloadend = () => {
       const base64String = (reader.result as string).split(',')[1];
-      setSelectedImage({
-        data: base64String,
-        mimeType: file.type,
-        preview: reader.result as string
-      });
+      setSelectedImage({ data: base64String, mimeType: file.type, preview: reader.result as string });
     };
     reader.readAsDataURL(file);
   };
@@ -101,36 +121,22 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
       navigateToProfile(); 
       return; 
     }
-    setBuildSteps([]); // Reset steps at the start of a new build
+    setBuildSteps([]);
     setBuildStatus({ status: 'pushing', message: 'Syncing project...' });
     try {
-      await github.current.pushToGithub(githubConfig, projectFiles);
+      await github.current.pushToGithub(githubConfig, projectFiles, projectConfig);
       setBuildStatus({ status: 'building', message: 'Compiling Android Binary...' });
-      
       const checkInterval = setInterval(async () => {
         const runDetails = await github.current.getRunDetails(githubConfig);
-        
-        // Update live steps in real-time
-        if (runDetails?.jobs?.[0]?.steps) {
-          setBuildSteps(runDetails.jobs[0].steps);
-        }
-
+        if (runDetails?.jobs?.[0]?.steps) setBuildSteps(runDetails.jobs[0].steps);
         if (runDetails?.jobs?.[0]?.status === 'completed') {
           clearInterval(checkInterval);
           const details = await github.current.getLatestApk(githubConfig);
-          if (details) {
-            setBuildStatus({ 
-              status: 'success', 
-              message: 'Done!', 
-              apkUrl: details.downloadUrl, 
-              webUrl: details.webUrl 
-            });
-          } else {
-            setBuildStatus({ status: 'error', message: 'Build completed but artifact not found.' });
-          }
+          if (details) setBuildStatus({ status: 'success', message: 'Done!', apkUrl: details.downloadUrl, webUrl: details.webUrl });
+          else setBuildStatus({ status: 'error', message: 'Build completed but artifact not found.' });
         } else if (runDetails?.jobs?.[0]?.conclusion === 'failure') {
           clearInterval(checkInterval);
-          setBuildStatus({ status: 'error', message: 'Build process failed on GitHub side.' });
+          setBuildStatus({ status: 'error', message: 'Build process failed.' });
         }
       }, 5000);
     } catch (e: any) { 
@@ -146,17 +152,14 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a'); a.href = url; a.download = `${githubConfig.repo}-build.zip`;
       document.body.appendChild(a); a.click();
-    } catch (e: any) { 
-      alert(e.message); 
-    } finally { 
-      setIsDownloading(false); 
-    }
+    } catch (e: any) { alert(e.message); } finally { setIsDownloading(false); }
   };
 
   return {
     messages, setMessages, input, setInput, isGenerating, projectFiles, setProjectFiles,
     selectedFile, setSelectedFile, githubConfig, setGithubConfig, buildStatus, setBuildStatus,
     buildSteps, setBuildSteps, isDownloading, handleSend, handleBuildAPK, handleSecureDownload,
-    selectedImage, setSelectedImage, handleImageSelect
+    selectedImage, setSelectedImage, handleImageSelect, 
+    projectConfig, setProjectConfig: saveProjectConfig, currentProjectId, loadProject
   };
 };

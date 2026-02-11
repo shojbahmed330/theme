@@ -2,6 +2,7 @@
 export enum AppMode {
   EDIT = 'EDIT',
   PREVIEW = 'PREVIEW',
+  CONFIG = 'CONFIG',
   SHOP = 'SHOP',
   PROFILE = 'PROFILE',
   SETTINGS = 'SETTINGS',
@@ -9,10 +10,21 @@ export enum AppMode {
   PROJECTS = 'PROJECTS'
 }
 
-export interface GithubConfig {
-  token: string;
-  repo: string;
-  owner: string;
+export interface ProjectConfig {
+  appName: string;
+  packageName: string;
+  icon?: string; // base64
+  splash?: string; // base64
+}
+
+export interface Project {
+  id: string;
+  user_id: string;
+  name: string;
+  files: Record<string, string>;
+  config?: ProjectConfig;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface BuildStep {
@@ -35,15 +47,6 @@ export interface Question {
   type: 'single' | 'multiple';
   options: QuestionOption[];
   allowOther?: boolean;
-}
-
-export interface Project {
-  id: string;
-  user_id: string;
-  name: string;
-  files: Record<string, string>;
-  created_at: string;
-  updated_at: string;
 }
 
 export interface ChatMessage {
@@ -88,6 +91,13 @@ export interface ActivityLog {
   action: string;
   details: string;
   created_at: string;
+}
+
+// Added missing GithubConfig interface export
+export interface GithubConfig {
+  token: string;
+  owner: string;
+  repo: string;
 }
 
 export interface User {

@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Sparkles, Shield } from 'lucide-react';
+import { Sparkles, Shield, Crown } from 'lucide-react';
 import { AppMode, User } from '../types';
 
 interface HeaderProps {
@@ -32,7 +32,7 @@ const Header: React.FC<HeaderProps> = ({ user, path, mode, navigateTo }) => {
         </span>
       </div>
       
-      <nav className="hidden lg:flex bg-white/5 rounded-2xl p-1.5 border border-white/5">
+      <nav className="hidden lg:flex bg-white/5 rounded-2xl p-1.5 border border-white/5 items-center gap-1">
         {navItems.map((m) => (
           <button 
             key={m.label} 
@@ -45,15 +45,18 @@ const Header: React.FC<HeaderProps> = ({ user, path, mode, navigateTo }) => {
         {user.isAdmin && (
           <button 
             onClick={() => navigateTo('/admin', AppMode.ADMIN)} 
-            className={`px-6 py-2.5 text-[10px] font-black uppercase rounded-xl transition-all flex items-center gap-2 ${path === '/admin' ? 'bg-white text-black' : 'text-zinc-500 hover:text-pink-400'}`}
+            className={`px-6 py-2.5 text-[10px] font-black uppercase rounded-xl transition-all flex items-center gap-2 border-l border-white/10 ml-2 ${path === '/admin' ? 'bg-gradient-to-r from-amber-500 to-orange-600 text-white shadow-lg shadow-amber-500/20' : 'text-amber-500 hover:bg-amber-500/10'}`}
           >
-            <Shield size={12}/> ADMIN
+            <Crown size={12} className={path === '/admin' ? 'animate-bounce' : ''}/> 
+            ADMIN HQ
           </button>
         )}
       </nav>
       
-      <div className="px-5 py-2.5 bg-pink-500/10 border border-pink-500/30 rounded-xl text-[11px] font-black text-white shadow-[0_0_20px_rgba(236,72,153,0.15)] uppercase tracking-widest">
-        {user.tokens} Tokens
+      <div className="flex items-center gap-4">
+        <div className="px-5 py-2.5 bg-pink-500/10 border border-pink-500/30 rounded-xl text-[11px] font-black text-white shadow-[0_0_20px_rgba(236,72,153,0.15)] uppercase tracking-widest">
+          {user.tokens} Tokens
+        </div>
       </div>
     </header>
   );

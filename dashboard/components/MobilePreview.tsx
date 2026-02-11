@@ -1,7 +1,7 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Smartphone, Sparkles, Loader2, Cpu } from 'lucide-react';
-import { AppMode } from '../../types';
+import { AppMode, ProjectConfig } from '../../types';
 import { buildFinalHtml } from '../../utils/previewBuilder';
 
 interface MobilePreviewProps {
@@ -10,13 +10,24 @@ interface MobilePreviewProps {
   handleBuildAPK: () => void;
   mobileTab: 'chat' | 'preview';
   isGenerating?: boolean;
+  projectConfig?: ProjectConfig;
 }
 
 const MobilePreview: React.FC<MobilePreviewProps> = ({ 
-  projectFiles, setMode, handleBuildAPK, mobileTab, isGenerating 
+  projectFiles, setMode, handleBuildAPK, mobileTab, isGenerating, projectConfig
 }) => {
+  const [showSplash, setShowSplash] = useState(false);
   const finalHtml = buildFinalHtml(projectFiles);
   const hasFiles = Object.keys(projectFiles).length > 0 && projectFiles['index.html'];
+
+  // Simulate Splash on initial file load or app refresh
+  useEffect(() => {
+    if (hasFiles && !isGenerating) {
+      setShowSplash(true);
+      const timer = setTimeout(() => setShowSplash(false), 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [hasFiles, isGenerating]);
 
   return (
     <section className={`flex-1 flex flex-col items-center justify-center p-6 relative h-full ${mobileTab === 'chat' ? 'hidden lg:flex' : 'flex'}`}>
@@ -27,7 +38,29 @@ const MobilePreview: React.FC<MobilePreviewProps> = ({
          
          <div className="flex-1 w-full bg-[#09090b] relative overflow-hidden">
             {hasFiles ? (
-              <iframe srcDoc={finalHtml} className="w-full h-full border-none" title="preview" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals" />
+              <>
+                <iframe srcDoc={finalHtml} className="w-full h-full border-none" title="preview" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals" />
+                
+                {/* Simulated Splash Screen Overlay */}
+                {showSplash && (
+                  <div className="absolute inset-0 bg-[#020203] z-[200] flex flex-col items-center justify-center p-8 animate-in fade-in duration-300 fade-out slide-out-to-top-full fill-mode-forwards delay-1000">
+                    {projectConfig?.splash && (
+                      <img src={projectConfig.splash} className="absolute inset-0 w-full h-full object-cover opacity-60" />
+                    )}
+                    <div className="relative z-10 flex flex-col items-center gap-6">
+                       <div className="w-20 h-20 rounded-3xl overflow-hidden shadow-2xl border border-white/10 animate-in zoom-in duration-500">
+                          {projectConfig?.icon ? (
+                            <img src={projectConfig.icon} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full bg-pink-500/20 flex items-center justify-center text-pink-500"><Sparkles size={32}/></div>
+                          )}
+                       </div>
+                       <h1 className="text-xl font-black text-white uppercase tracking-[0.3em]">{projectConfig?.appName || 'Studio App'}</h1>
+                       <div className="w-4 h-4 border-2 border-white/10 rounded-full animate-spin border-t-pink-500 mt-10"></div>
+                    </div>
+                  </div>
+                )}
+              </>
             ) : (
               <div className="w-full h-full flex flex-col items-center justify-center p-8 bg-[#020203] text-center space-y-6">
                  <div className="relative">
@@ -43,7 +76,6 @@ const MobilePreview: React.FC<MobilePreviewProps> = ({
               </div>
             )}
 
-            {/* AI Generation Overlay - High End Pink Style */}
             {isGenerating && (
               <div className="absolute inset-0 bg-black/95 backdrop-blur-2xl z-[100] flex flex-col items-center justify-center text-center p-8 animate-in fade-in duration-500">
                  <div className="absolute top-12 left-0 right-0 flex flex-col items-center gap-2">

@@ -1,5 +1,5 @@
 
-import { GithubConfig } from "../types";
+import { GithubConfig, ProjectConfig } from "../types";
 
 export class GithubService {
   private workflowYaml = `name: Build Android APK
@@ -29,12 +29,12 @@ jobs:
 
       - name: Initialize Capacitor and Build APK
         run: |
-          # 1. Clean and Setup directories
+          # 1. Setup directories
           rm -rf www android capacitor.config.json
           mkdir -p www
+          mkdir -p assets
           
-          # 2. Sync ALL web assets recursively (index.html, styles, scripts, etc.)
-          # Exclude system files and build artifacts
+          # 2. Sync web assets
           find . -maxdepth 3 -type f \
             -not -path '*/.*' \
             -not -name "package*" \
@@ -44,24 +44,26 @@ jobs:
             -not -path "./node_modules/*" \
             -exec cp --parents {} www/ \;
           
-          # Move files from subdirectories if cp --parents created nested structures we want to flatten 
-          # but usually for Capacitor, we want to keep the relative structure.
-          
           # 3. Setup Project
           if [ ! -f package.json ]; then
             npm init -y
           fi
           
           # 4. Install Dependencies
-          npm install @capacitor/core@latest @capacitor/cli@latest @capacitor/android@latest
+          npm install @capacitor/core@latest @capacitor/cli@latest @capacitor/android@latest @capacitor/assets@latest
           
-          # 5. Capacitor Init
-          npx cap init "OneClickApp" "com.oneclick.studio" --web-dir www
+          # 5. Asset Generation (If images exist)
+          if [ -d "assets" ]; then
+            npx capacitor-assets generate --android
+          fi
           
-          # 6. Add Android Platform
+          # 6. Capacitor Init (Config already pushed)
+          # npx cap init "OneClickApp" "com.oneclick.studio" --web-dir www # Handled by pre-pushed config
+          
+          # 7. Add Android Platform
           npx cap add android
           
-          # 7. CRITICAL FIXES: Java 21 & Kotlin Duplication
+          # 8. CRITICAL FIXES: Java 21 & Kotlin Duplication
           echo "android.enableJetifier=true" >> android/gradle.properties
           echo "android.useAndroidX=true" >> android/gradle.properties
           
@@ -92,7 +94,7 @@ jobs:
 
           npx cap copy android
           
-          # 8. Build APK
+          # 9. Build APK
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug
@@ -117,12 +119,12 @@ jobs:
     }
   }
 
-  async pushToGithub(config: GithubConfig, files: Record<string, string>) {
+  async pushToGithub(config: GithubConfig, files: Record<string, string>, appConfig?: ProjectConfig) {
     const token = config.token.trim();
     const owner = config.owner.trim();
     const repo = config.repo.trim();
 
-    if (!token || !owner || !repo) throw new Error("গিটহাব কনফিগারেশন ইনভ্যালিড। লোগোতে ৩ বার ক্লিক করে সেটিংস চেক করুন।");
+    if (!token || !owner || !repo) throw new Error("গিটহাব কনফিগারেশন ইনভ্যালিড।");
 
     const baseUrl = `https://api.github.com/repos/${owner}/${repo}`;
     const headers = {
@@ -132,121 +134,89 @@ jobs:
     };
 
     const repoCheck = await fetch(baseUrl, { headers });
-    if (!repoCheck.ok) {
-      const err = await repoCheck.json().catch(() => ({}));
-      throw new Error(`গিটহাব কানেকশন এরর: ${err.message || "অজানা সমস্যা"}`);
-    }
+    if (!repoCheck.ok) throw new Error("গিটহাব কানেকশন এরর।");
 
-    const allFiles = { 
-        ...files, 
-        '.github/workflows/android.yml': this.workflowYaml 
+    // Construct capacitor.config.json
+    const capConfig = {
+      appId: appConfig?.packageName || 'com.oneclick.studio',
+      appName: appConfig?.appName || 'OneClickApp',
+      webDir: 'www',
+      bundledWebRuntime: false
     };
 
+    const allFiles: Record<string, string> = { 
+        ...files, 
+        '.github/workflows/android.yml': this.workflowYaml,
+        'capacitor.config.json': JSON.stringify(capConfig, null, 2)
+    };
+
+    // Add assets if they exist
+    if (appConfig?.icon) {
+      allFiles['assets/icon-only.png'] = appConfig.icon;
+      allFiles['assets/icon-foreground.png'] = appConfig.icon;
+      allFiles['assets/icon-background.png'] = '#FFFFFF'; // Default
+    }
+    if (appConfig?.splash) {
+      allFiles['assets/splash.png'] = appConfig.splash;
+    }
+
     for (const [path, content] of Object.entries(allFiles)) {
+      const isBase64 = content.startsWith('data:image') || path.startsWith('assets/');
+      const finalContent = isBase64 ? content.split(',')[1] || content : this.toBase64(content);
+
       const getRes = await fetch(`${baseUrl}/contents/${path}`, { headers });
       let sha: string | undefined;
-      
       if (getRes.ok) {
         const getData = await getRes.json();
         sha = getData.sha;
       }
 
-      const putRes = await fetch(`${baseUrl}/contents/${path}`, {
+      await fetch(`${baseUrl}/contents/${path}`, {
         method: 'PUT',
-        headers: {
-          ...headers,
-          'Content-Type': 'application/json'
-        },
+        headers: { ...headers, 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: `Update ${path} via OneClick Studio`,
-          content: this.toBase64(content),
+          message: `Update ${path} via OneClick Studio Build Engine`,
+          content: finalContent,
           sha: sha
         })
       });
-
-      if (!putRes.ok) {
-        const err = await putRes.json().catch(() => ({}));
-        throw new Error(`ফাইল ${path} পুশ করতে সমস্যা হয়েছে: ${err.message || "পারমিশন নেই"}.`);
-      }
     }
   }
 
   async listRepos(token: string) {
     const res = await fetch('https://api.github.com/user/repos?sort=updated&per_page=100', {
-      headers: { 
-        'Authorization': `token ${token}`,
-        'Accept': 'application/vnd.github.v3+json'
-      }
+      headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.v3+json' }
     });
-    if (!res.ok) return [];
-    return await res.json();
+    return res.ok ? await res.json() : [];
   }
 
   async getRunDetails(config: GithubConfig) {
-    const token = config.token.trim();
-    const owner = config.owner.trim();
-    const repo = config.repo.trim();
-    const headers = { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.v3+json' };
-    
-    try {
-      const runsRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/actions/runs?per_page=1`, { headers });
-      if (!runsRes.ok) return null;
-      const runsData = await runsRes.json();
-      const latestRun = runsData.workflow_runs?.[0];
-      if (!latestRun) return null;
-
-      const jobsRes = await fetch(latestRun.jobs_url, { headers });
-      if (!jobsRes.ok) return { run: latestRun, jobs: [] };
-      const jobsData = await jobsRes.json();
-      return { run: latestRun, jobs: jobsData.jobs || [] };
-    } catch (e) {
-      console.error("getRunDetails error:", e);
-      return null;
-    }
+    const headers = { 'Authorization': `token ${config.token}`, 'Accept': 'application/vnd.github.v3+json' };
+    const runsRes = await fetch(`https://api.github.com/repos/${config.owner}/${config.repo}/actions/runs?per_page=1`, { headers });
+    if (!runsRes.ok) return null;
+    const runsData = await runsRes.json();
+    const latestRun = runsData.workflow_runs?.[0];
+    if (!latestRun) return null;
+    const jobsRes = await fetch(latestRun.jobs_url, { headers });
+    const jobsData = await jobsRes.json();
+    return { run: latestRun, jobs: jobsData.jobs || [] };
   }
 
   async getLatestApk(config: GithubConfig) {
-    const token = config.token.trim();
-    const owner = config.owner.trim();
-    const repo = config.repo.trim();
-
-    if (!token || !owner || !repo) return null;
-    
-    const headers = { 
-      'Authorization': `token ${token}`,
-      'Accept': 'application/vnd.github.v3+json'
-    };
-    
-    try {
-      const runsRes = await fetch(`https://api.github.com/repos/${owner}/${repo}/actions/runs?per_page=1`, { headers });
-      if (!runsRes.ok) return null;
-      const runsData = await runsRes.json();
-      const latestRun = runsData.workflow_runs?.[0];
-
-      if (!latestRun || latestRun.status !== 'completed' || latestRun.conclusion !== 'success') {
-        return null; 
-      }
-
-      const artifactsRes = await fetch(latestRun.artifacts_url, { headers });
-      if (!artifactsRes.ok) return null;
-      const data = await artifactsRes.json();
-      const artifact = data.artifacts?.find((a: any) => a.name === 'app-debug' || a.name === 'app-bundle');
-      
-      if (!artifact) return null;
-
-      return {
-        downloadUrl: artifact.archive_download_url,
-        webUrl: latestRun.html_url 
-      };
-    } catch (e) {
-      console.error("getLatestApk error:", e);
-      return null;
-    }
+    const headers = { 'Authorization': `token ${config.token}`, 'Accept': 'application/vnd.github.v3+json' };
+    const runsRes = await fetch(`https://api.github.com/repos/${config.owner}/${config.repo}/actions/runs?per_page=1`, { headers });
+    if (!runsRes.ok) return null;
+    const runsData = await runsRes.json();
+    const latestRun = runsData.workflow_runs?.[0];
+    if (!latestRun || latestRun.status !== 'completed' || latestRun.conclusion !== 'success') return null;
+    const artifactsRes = await fetch(latestRun.artifacts_url, { headers });
+    const data = await artifactsRes.json();
+    const artifact = data.artifacts?.find((a: any) => a.name === 'app-debug');
+    return artifact ? { downloadUrl: artifact.archive_download_url, webUrl: latestRun.html_url } : null;
   }
 
   async downloadArtifact(config: GithubConfig, url: string) {
-    const headers = { 'Authorization': `token ${config.token}` };
-    const res = await fetch(url, { headers });
+    const res = await fetch(url, { headers: { 'Authorization': `token ${config.token}` } });
     if (!res.ok) throw new Error("ডাউনলোড এরর।");
     return await res.blob();
   }

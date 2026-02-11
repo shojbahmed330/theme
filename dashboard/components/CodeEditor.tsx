@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { FileCode, Rocket } from 'lucide-react';
+import { FileCode, Rocket, Settings } from 'lucide-react';
 
 interface CodeEditorProps {
   projectFiles: Record<string, string>;
@@ -8,10 +8,11 @@ interface CodeEditorProps {
   selectedFile: string;
   setSelectedFile: (file: string) => void;
   handleBuildAPK: () => void;
+  onOpenConfig?: () => void;
 }
 
 const CodeEditor: React.FC<CodeEditorProps> = ({ 
-  projectFiles, setProjectFiles, selectedFile, setSelectedFile, handleBuildAPK 
+  projectFiles, setProjectFiles, selectedFile, setSelectedFile, handleBuildAPK, onOpenConfig
 }) => {
   return (
     <>
@@ -25,7 +26,17 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
       </aside>
       <main className="flex-1 bg-[#1a0533]/40 p-4 overflow-hidden flex flex-col">
          <div className="flex items-center justify-between mb-4 px-2">
-            <span className="text-xs font-mono text-pink-400 font-bold">{selectedFile}</span>
+            <div className="flex items-center gap-4">
+              <span className="text-xs font-mono text-pink-400 font-bold">{selectedFile}</span>
+              {onOpenConfig && (
+                <button 
+                  onClick={onOpenConfig}
+                  className="flex items-center gap-2 text-[10px] font-black uppercase text-zinc-500 hover:text-pink-400 transition-colors"
+                >
+                  <Settings size={14}/> <span>App Settings</span>
+                </button>
+              )}
+            </div>
             <button onClick={handleBuildAPK} className="px-6 py-2 bg-pink-600 rounded-xl text-[10px] font-black uppercase tracking-widest shadow-lg flex items-center gap-2 hover:bg-pink-500 transition-colors"><Rocket size={14}/> Run Cloud Build</button>
          </div>
          <textarea 

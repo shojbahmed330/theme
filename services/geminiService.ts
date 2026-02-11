@@ -1,6 +1,6 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { ChatMessage } from "../types";
+import { ChatMessage, Question } from "../types";
 
 const SYSTEM_PROMPT = `You are OneClick Studio, a World-Class Senior Lead Android Hybrid Developer & UI/UX Designer.
 Your goal is to build MODULAR, SCALABLE, and PRE-PRODUCTION READY hybrid apps.
@@ -60,7 +60,7 @@ Your goal is to build MODULAR, SCALABLE, and PRE-PRODUCTION READY hybrid apps.
 export interface GenerationResult {
   files?: Record<string, string>;
   answer: string;
-  questions?: any[];
+  questions?: Question[];
   thought?: string;
 }
 
@@ -71,6 +71,7 @@ export class GeminiService {
     history: ChatMessage[] = [],
     image?: { data: string; mimeType: string }
   ): Promise<GenerationResult> {
+    // Initializing GoogleGenAI client with API key from environment
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     
     const parts: any[] = [
@@ -89,6 +90,7 @@ export class GeminiService {
     }
 
     try {
+      // Using ai.models.generateContent for GenAI SDK compliance with model and prompt
       const response = await ai.models.generateContent({
         model: 'gemini-3-pro-preview',
         contents: { parts },
@@ -97,6 +99,7 @@ export class GeminiService {
           responseMimeType: "application/json"
         }
       });
+      // Directly access .text property from GenerateContentResponse
       return JSON.parse(response.text || '{}');
     } catch (error) {
       console.error(error);
