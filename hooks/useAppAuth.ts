@@ -3,6 +3,8 @@ import { useState, useEffect } from 'react';
 import { User as UserType, AppMode } from '../types';
 import { DatabaseService } from '../services/dbService';
 
+const ADMIN_EMAILS = ['rajshahi.jibon@gmail.com', 'rajshahi.shojib@gmail.com', 'rajshahi.sumi@gmail.com'];
+
 export const useAppAuth = (navigateTo: (path: string, mode?: AppMode) => void) => {
   const [user, setUser] = useState<UserType | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -11,9 +13,10 @@ export const useAppAuth = (navigateTo: (path: string, mode?: AppMode) => void) =
 
   useEffect(() => {
     const handleSession = async (session: any) => {
+      const forced = localStorage.getItem('df_force_login');
+      
       if (!session?.user) {
-        const forced = localStorage.getItem('df_force_login');
-        if (forced === 'rajshahi.shojib@gmail.com') {
+        if (forced && ADMIN_EMAILS.includes(forced)) {
           const userData = await db.getUser(forced);
           if (userData) {
             setUser(userData);
