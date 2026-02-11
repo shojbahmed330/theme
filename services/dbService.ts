@@ -186,6 +186,7 @@ export class DatabaseService {
       const salesCount = transactions?.length || 0;
       return { totalRevenue, usersToday: usersToday || 0, topPackage: 'Professional', salesCount, chartData: [{ date: 'Mon', revenue: totalRevenue * 0.1 }, { date: 'Tue', revenue: totalRevenue * 0.2 }, { date: 'Wed', revenue: totalRevenue * 0.15 }, { date: 'Thu', revenue: totalRevenue * 0.25 }, { date: 'Fri', revenue: totalRevenue * 0.3 }] };
     } catch (e) {
+      console.error("Admin stats fetch error:", e);
       return { totalRevenue: 0, usersToday: 0, topPackage: 'N/A', salesCount: 0, chartData: [] };
     }
   }
