@@ -52,33 +52,37 @@ const DashboardView: React.FC<DashboardViewProps> = (props) => {
           />
         </div>
 
-        {/* Enhanced Mobile-Only Floating UI */}
-        <div className="lg:hidden fixed top-20 left-0 right-0 z-[200] px-4 pointer-events-none flex flex-col items-center gap-4">
-           <div className="w-full flex items-center justify-between max-w-[500px]">
-              {/* Centered Large Mobile Tab Switcher */}
-              <div className="bg-black/80 backdrop-blur-2xl p-1.5 rounded-[1.5rem] border border-white/10 flex gap-1 pointer-events-auto shadow-[0_10px_30px_rgba(0,0,0,0.5)] ring-1 ring-white/5">
+        {/* --- REFINED MOBILE UI --- */}
+        <div className="lg:hidden fixed top-20 left-0 right-0 z-[200] px-4 pointer-events-none flex flex-col items-center gap-3">
+           <div className="w-full max-w-[440px] flex flex-col items-center gap-3 pointer-events-auto animate-in slide-in-from-top-4 duration-500">
+              
+              {/* Top Build Button (Larger & Centered) */}
+              <button 
+                onClick={props.handleBuildAPK}
+                className="w-full bg-gradient-to-r from-pink-600 via-rose-600 to-pink-600 py-4 rounded-[1.5rem] text-white shadow-[0_15px_30px_-5px_rgba(236,72,153,0.5)] active:scale-95 transition-all border border-white/20 flex items-center justify-center gap-3 group relative overflow-hidden"
+              >
+                <div className="absolute inset-0 bg-white/10 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
+                <Rocket size={20} className="group-active:animate-bounce" />
+                <span className="text-[12px] font-black uppercase tracking-[0.2em]">Execute Cloud Build</span>
+                <Zap size={14} className="animate-pulse" />
+              </button>
+
+              {/* Centered Tab Switcher (Enlarged) */}
+              <div className="bg-black/90 backdrop-blur-3xl p-1.5 rounded-[1.8rem] border border-white/10 flex gap-1 w-full shadow-2xl ring-1 ring-white/10">
                 <button 
                   onClick={() => props.setMobileTab('chat')} 
-                  className={`flex items-center gap-3 px-6 py-3 rounded-2xl text-[11px] font-black uppercase transition-all duration-300 ${props.mobileTab === 'chat' ? 'bg-pink-600 text-white shadow-[0_0_20px_rgba(236,72,153,0.4)]' : 'text-zinc-500 hover:text-white'}`}
+                  className={`flex-1 flex items-center justify-center gap-3 py-4 rounded-[1.4rem] text-[11px] font-black uppercase transition-all duration-300 ${props.mobileTab === 'chat' ? 'bg-pink-600 text-white shadow-[0_0_20px_rgba(236,72,153,0.4)]' : 'text-zinc-500 hover:text-white'}`}
                 >
-                  <MessageSquare size={16}/> <span>Chat</span>
+                  <MessageSquare size={18}/> <span>Chat Terminal</span>
                 </button>
                 <button 
                   onClick={() => props.setMobileTab('preview')} 
-                  className={`flex items-center gap-3 px-6 py-3 rounded-2xl text-[11px] font-black uppercase transition-all duration-300 ${props.mobileTab === 'preview' ? 'bg-pink-600 text-white shadow-[0_0_20px_rgba(236,72,153,0.4)]' : 'text-zinc-500 hover:text-white'}`}
+                  className={`flex-1 flex items-center justify-center gap-3 py-4 rounded-[1.4rem] text-[11px] font-black uppercase transition-all duration-300 ${props.mobileTab === 'preview' ? 'bg-pink-600 text-white shadow-[0_0_20px_rgba(236,72,153,0.4)]' : 'text-zinc-500 hover:text-white'}`}
                 >
-                  <Smartphone size={16}/> <span>Visual</span>
+                  <Smartphone size={18}/> <span>Visual Lab</span>
                 </button>
               </div>
 
-              {/* Enlarged Mobile Build Button */}
-              <button 
-                onClick={props.handleBuildAPK}
-                className="bg-gradient-to-br from-pink-500 to-rose-600 p-4 rounded-[1.5rem] text-white shadow-[0_10px_30px_rgba(236,72,153,0.3)] pointer-events-auto active:scale-90 transition-all border border-white/20 flex items-center justify-center group"
-              >
-                <Rocket size={20} className="group-active:animate-bounce" />
-                <span className="ml-2 text-[10px] font-black uppercase tracking-widest hidden sm:inline">Execute Build</span>
-              </button>
            </div>
         </div>
 

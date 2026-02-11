@@ -171,7 +171,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({
     <section className={`w-full lg:w-[520px] border-r border-white/5 flex flex-col bg-black/40 h-full relative ${mobileTab === 'preview' ? 'hidden lg:flex' : 'flex'}`}>
       <div 
         ref={scrollRef}
-        className="flex-1 p-6 overflow-y-auto space-y-10 pt-20 md:pt-6 pb-40 scroll-smooth custom-scrollbar"
+        className="flex-1 p-6 overflow-y-auto space-y-10 pt-48 md:pt-6 pb-40 scroll-smooth custom-scrollbar"
       >
         {messages.length > 0 ? messages.map((m, idx) => (
           <div 
