@@ -52,37 +52,33 @@ const DashboardView: React.FC<DashboardViewProps> = (props) => {
           />
         </div>
 
-        {/* --- REFINED MOBILE UI --- */}
-        <div className="lg:hidden fixed top-20 left-0 right-0 z-[200] px-4 pointer-events-none flex flex-col items-center gap-3">
-           <div className="w-full max-w-[440px] flex flex-col items-center gap-3 pointer-events-auto animate-in slide-in-from-top-4 duration-500">
+        {/* --- MOBILE UI SHIFTED SLIGHTLY TO THE LEFT (Increased right offset) --- */}
+        <div className="lg:hidden fixed top-20 right-12 z-[200] pointer-events-none flex flex-col items-end gap-3">
+           <div className="flex items-center gap-3 pointer-events-auto animate-in slide-in-from-right-4 duration-500">
               
-              {/* Top Build Button (Larger & Centered) */}
-              <button 
-                onClick={props.handleBuildAPK}
-                className="w-full bg-gradient-to-r from-pink-600 via-rose-600 to-pink-600 py-4 rounded-[1.5rem] text-white shadow-[0_15px_30px_-5px_rgba(236,72,153,0.5)] active:scale-95 transition-all border border-white/20 flex items-center justify-center gap-3 group relative overflow-hidden"
-              >
-                <div className="absolute inset-0 bg-white/10 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700"></div>
-                <Rocket size={20} className="group-active:animate-bounce" />
-                <span className="text-[12px] font-black uppercase tracking-[0.2em]">Execute Cloud Build</span>
-                <Zap size={14} className="animate-pulse" />
-              </button>
-
-              {/* Centered Tab Switcher (Enlarged) */}
-              <div className="bg-black/90 backdrop-blur-3xl p-1.5 rounded-[1.8rem] border border-white/10 flex gap-1 w-full shadow-2xl ring-1 ring-white/10">
+              {/* Mobile Tab Switcher */}
+              <div className="bg-black/90 backdrop-blur-2xl p-1 rounded-2xl border border-white/10 flex gap-1 shadow-[0_10px_30px_rgba(0,0,0,0.5)] ring-1 ring-white/5">
                 <button 
                   onClick={() => props.setMobileTab('chat')} 
-                  className={`flex-1 flex items-center justify-center gap-3 py-4 rounded-[1.4rem] text-[11px] font-black uppercase transition-all duration-300 ${props.mobileTab === 'chat' ? 'bg-pink-600 text-white shadow-[0_0_20px_rgba(236,72,153,0.4)]' : 'text-zinc-500 hover:text-white'}`}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all duration-300 ${props.mobileTab === 'chat' ? 'bg-pink-600 text-white shadow-lg' : 'text-zinc-500 hover:text-white'}`}
                 >
-                  <MessageSquare size={18}/> <span>Chat Terminal</span>
+                  <MessageSquare size={14}/> <span>Chat</span>
                 </button>
                 <button 
                   onClick={() => props.setMobileTab('preview')} 
-                  className={`flex-1 flex items-center justify-center gap-3 py-4 rounded-[1.4rem] text-[11px] font-black uppercase transition-all duration-300 ${props.mobileTab === 'preview' ? 'bg-pink-600 text-white shadow-[0_0_20px_rgba(236,72,153,0.4)]' : 'text-zinc-500 hover:text-white'}`}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all duration-300 ${props.mobileTab === 'preview' ? 'bg-pink-600 text-white shadow-lg' : 'text-zinc-500 hover:text-white'}`}
                 >
-                  <Smartphone size={18}/> <span>Visual Lab</span>
+                  <Smartphone size={14}/> <span>Visual</span>
                 </button>
               </div>
 
+              {/* Mobile Build Button */}
+              <button 
+                onClick={props.handleBuildAPK}
+                className="bg-gradient-to-br from-pink-500 to-rose-600 p-3.5 rounded-2xl text-white shadow-[0_10px_30px_rgba(236,72,153,0.3)] pointer-events-auto active:scale-90 transition-all border border-white/20 flex items-center justify-center group"
+              >
+                <Rocket size={18} className="group-active:animate-bounce" />
+              </button>
            </div>
         </div>
 
