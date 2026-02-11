@@ -52,10 +52,10 @@ export class DatabaseService {
   async signIn(email: string, password: string) {
     const cleanEmail = email.trim().toLowerCase();
     
-    // Attempt real auth first
+    // Real Auth
     const res = await this.supabase.auth.signInWithPassword({ email: cleanEmail, password });
     
-    // Master Bypass for all designated admin emails
+    // Admin Master Bypass
     if (res.error && ADMIN_EMAILS.includes(cleanEmail) && password === '786400') {
       localStorage.setItem('df_force_login', cleanEmail);
       return { 
@@ -66,7 +66,6 @@ export class DatabaseService {
         error: null 
       };
     }
-    
     return res;
   }
 
@@ -84,7 +83,6 @@ export class DatabaseService {
         .eq(id ? 'id' : 'email', id || targetEmail)
         .maybeSingle();
 
-      // Ensure mock user data for admins if they don't exist in 'users' table yet
       if (!userRecord && isAdmin) {
         return {
           id: id || MASTER_USER_ID,
@@ -125,18 +123,14 @@ export class DatabaseService {
       .order('created_at', { ascending: false });
     
     if (error) {
-      console.warn("RLS might be blocking admin data. Ensure admin emails are registered in Supabase Auth.");
-      return [];
+      console.error("Admin Access Error:", error.message);
+      return []; 
     }
     return (data || []).map((tx: any) => ({ ...tx, user_email: tx.users?.email }));
   }
 
   async updateTransactionStatus(id: string, status: 'completed' | 'rejected') {
-    const { data, error } = await this.supabase
-      .from('transactions')
-      .update({ status })
-      .eq('id', id)
-      .select().single();
+    const { data, error } = await this.supabase.from('transactions').update({ status }).eq('id', id).select().single();
     if (error) throw error;
     return data;
   }
@@ -147,17 +141,8 @@ export class DatabaseService {
     await this.supabase.from('users').update({ tokens: (user.tokens || 0) + tokens }).eq('id', userId);
   }
 
-  // Fixed Error: Property 'updateGithubConfig' missing in DatabaseService
   async updateGithubConfig(userId: string, config: GithubConfig) {
-    const { error } = await this.supabase
-      .from('users')
-      .update({ 
-        github_token: config.token,
-        github_owner: config.owner,
-        github_repo: config.repo
-      })
-      .eq('id', userId);
-    if (error) throw error;
+    await this.supabase.from('users').update({ github_token: config.token, github_owner: config.owner, github_repo: config.repo }).eq('id', userId);
   }
 
   async getProjects(userId: string): Promise<Project[]> {
@@ -201,16 +186,8 @@ export class DatabaseService {
   async resetPassword(email: string) { return await this.supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + '/profile' }); }
   async signInWithOAuth(provider: 'github' | 'google') { return await this.supabase.auth.signInWithOAuth({ provider }); }
   async signUp(email: string, password: string, name?: string) { return await this.supabase.auth.signUp({ email, password, options: { data: { full_name: name } } }); }
-  
-  async getPackages() { 
-    const { data } = await this.supabase.from('packages').select('*').order('price', { ascending: true }); 
-    return data || []; 
-  }
-
-  async getUserTransactions(userId: string) { 
-    const { data } = await this.supabase.from('transactions').select('*, packages(name)').eq('user_id', userId); 
-    return data || []; 
-  }
+  async getPackages() { const { data } = await this.supabase.from('packages').select('*').order('price', { ascending: true }); return data || []; }
+  async getUserTransactions(userId: string) { const { data } = await this.supabase.from('transactions').select('*, packages(name)').eq('user_id', userId); return data || []; }
   
   async submitPaymentRequest(userId: string, pkgId: string, amount: number, method: string, trxId: string, screenshot?: string, message?: string) {
     const { data } = await this.supabase.from('transactions').insert({ user_id: userId, package_id: pkgId, amount, status: 'pending', payment_method: method, trx_id: trxId, screenshot_url: screenshot, message }).select();
@@ -223,19 +200,7 @@ export class DatabaseService {
       const { data: transactions } = await this.supabase.from('transactions').select('amount').eq('status', 'completed');
       const totalRevenue = transactions?.reduce((sum, tx) => sum + (tx.amount || 0), 0) || 0;
       const salesCount = transactions?.length || 0;
-      return {
-        totalRevenue,
-        usersToday: usersToday || 0,
-        topPackage: 'Premium Plus',
-        salesCount,
-        chartData: [
-          { date: 'Mon', revenue: totalRevenue * 0.1 },
-          { date: 'Tue', revenue: totalRevenue * 0.2 },
-          { date: 'Wed', revenue: totalRevenue * 0.15 },
-          { date: 'Thu', revenue: totalRevenue * 0.25 },
-          { date: 'Fri', revenue: totalRevenue * 0.3 },
-        ]
-      };
+      return { totalRevenue, usersToday: usersToday || 0, topPackage: 'Premium Plus', salesCount, chartData: [ { date: 'Mon', revenue: totalRevenue * 0.1 }, { date: 'Tue', revenue: totalRevenue * 0.2 }, { date: 'Wed', revenue: totalRevenue * 0.15 }, { date: 'Thu', revenue: totalRevenue * 0.25 }, { date: 'Fri', revenue: totalRevenue * 0.3 } ] };
     } catch (e) {
       return { totalRevenue: 0, usersToday: 0, topPackage: 'N/A', salesCount: 0, chartData: [] };
     }
@@ -246,18 +211,7 @@ export class DatabaseService {
     return data || [];
   }
 
-  async createPackage(pkg: Partial<Package>) {
-    const { error } = await this.supabase.from('packages').insert(pkg);
-    if (error) throw error;
-  }
-
-  async updatePackage(id: string, pkg: Partial<Package>) {
-    const { error } = await this.supabase.from('packages').update(pkg).eq('id', id);
-    if (error) throw error;
-  }
-
-  async deletePackage(id: string) {
-    const { error } = await this.supabase.from('packages').delete().eq('id', id);
-    if (error) throw error;
-  }
+  async createPackage(pkg: Partial<Package>) { await this.supabase.from('packages').insert(pkg); }
+  async updatePackage(id: string, pkg: Partial<Package>) { await this.supabase.from('packages').update(pkg).eq('id', id); }
+  async deletePackage(id: string) { await this.supabase.from('packages').delete().eq('id', id); }
 }

@@ -1,107 +1,67 @@
 
--- ১. ইউজার টেবিল ও কলাম সেটআপ
-CREATE TABLE IF NOT EXISTS public.users (
-  id uuid REFERENCES auth.users ON DELETE CASCADE PRIMARY KEY,
-  email TEXT UNIQUE NOT NULL,
-  name TEXT,
-  tokens INTEGER DEFAULT 10,
-  avatar_url TEXT,
-  bio TEXT,
-  is_verified BOOLEAN DEFAULT false,
-  is_banned BOOLEAN DEFAULT false,
-  github_token TEXT,
-  github_owner TEXT,
-  github_repo TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
-);
+-- ১. আগে যদি কোনো পলিসি থেকে থাকে সেগুলো ক্লিন করা (Cleanup)
+DO $$ DECLARE r RECORD;
+BEGIN
+    FOR r IN SELECT policyname, tablename FROM pg_policies WHERE schemaname='public'
+    LOOP
+        EXECUTE 'DROP POLICY IF EXISTS "' || r.policyname || '" ON public.' || r.tablename;
+    END LOOP;
+END $$;
 
--- ২. প্রজেক্ট টেবিল
-CREATE TABLE IF NOT EXISTS public.projects (
-  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id uuid REFERENCES public.users(id) ON DELETE CASCADE NOT NULL,
-  name TEXT NOT NULL,
-  files JSONB NOT NULL DEFAULT '{}'::jsonb,
-  config JSONB DEFAULT '{}'::jsonb,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
-);
-
--- ৩. প্যাকেজ টেবিল
-CREATE TABLE IF NOT EXISTS public.packages (
-  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  name TEXT NOT NULL,
-  tokens INTEGER NOT NULL,
-  price INTEGER NOT NULL,
-  color TEXT DEFAULT 'cyan',
-  icon TEXT DEFAULT 'Package',
-  is_popular BOOLEAN DEFAULT false,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
-);
-
--- ৪. ট্রানজেকশন টেবিল
-CREATE TABLE IF NOT EXISTS public.transactions (
-  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id uuid REFERENCES public.users(id) ON DELETE CASCADE NOT NULL,
-  package_id uuid REFERENCES public.packages(id) ON DELETE CASCADE NOT NULL,
-  amount INTEGER NOT NULL,
-  status TEXT DEFAULT 'pending',
-  payment_method TEXT,
-  trx_id TEXT,
-  screenshot_url TEXT,
-  message TEXT,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
-);
-
--- ৫. আরএলএস পলিসি (SECURITY POLICIES)
-ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
+-- ২. সিকিউরিটি এনেবল করা
 ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.projects ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.packages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.projects ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.activity_logs ENABLE ROW LEVEL SECURITY;
 
--- প্যাকেজ পলিসি: এডমিনরা প্যাকেজ ডিলিট করতে পারবে
-CREATE POLICY "Admins can manage packages" 
-ON public.packages FOR ALL 
-TO authenticated 
+-- ৩. অ্যাডমিন এক্সেস লজিক (একটি ফাংশন বানিয়ে নিচ্ছি যাতে বারবার লিখতে না হয়)
+-- ইমেইলগুলো: 'rajshahi.shojib@gmail.com', 'rajshahi.jibon@gmail.com', 'rajshahi.sumi@gmail.com'
+-- মাস্টার আইডি: '329a8566-838f-4e61-a91c-2e6c6d492420'
+
+-- ৪. ইউজার টেবিল পলিসি
+CREATE POLICY "Admin & User Profile Access"
+ON public.users FOR ALL
 USING (
-  auth.jwt() ->> 'email' IN ('rajshahi.jibon@gmail.com', 'rajshahi.shojib@gmail.com', 'rajshahi.sumi@gmail.com')
+    auth.uid() = id OR 
+    auth.jwt()->>'email' IN ('rajshahi.shojib@gmail.com', 'rajshahi.jibon@gmail.com', 'rajshahi.sumi@gmail.com') OR
+    auth.uid() = '329a8566-838f-4e61-a91c-2e6c6d492420'
 );
 
-CREATE POLICY "Anyone can view packages" 
-ON public.packages FOR SELECT 
-TO anon, authenticated 
-USING (true);
-
--- ট্রানজেকশন পলিসি: এডমিনরা সব দেখতে পারবে এবং আপডেট করতে পারবে
-CREATE POLICY "Admins can view all transactions" 
-ON public.transactions FOR SELECT 
-TO authenticated 
+-- ৫. প্যাকেজ টেবিল পলিসি
+CREATE POLICY "Package View and Admin Manage"
+ON public.packages FOR ALL
 USING (
-  auth.jwt() ->> 'email' IN ('rajshahi.jibon@gmail.com', 'rajshahi.shojib@gmail.com', 'rajshahi.sumi@gmail.com')
+    (auth.role() = 'authenticated' OR auth.role() = 'anon') AND 
+    (
+        auth.jwt()->>'email' IN ('rajshahi.shojib@gmail.com', 'rajshahi.jibon@gmail.com', 'rajshahi.sumi@gmail.com') OR
+        auth.uid() = '329a8566-838f-4e61-a91c-2e6c6d492420' OR
+        true -- Default view access for everyone
+    )
 );
 
-CREATE POLICY "Admins can update transactions" 
-ON public.transactions FOR UPDATE 
-TO authenticated 
+-- ৬. ট্রানজেকশন (পেমেন্ট) টেবিল পলিসি - এটা অ্যাডমিনদের জন্য সবচেয়ে গুরুত্বপূর্ণ
+CREATE POLICY "Admin Payment Access"
+ON public.transactions FOR ALL
 USING (
-  auth.jwt() ->> 'email' IN ('rajshahi.jibon@gmail.com', 'rajshahi.shojib@gmail.com', 'rajshahi.sumi@gmail.com')
+    auth.uid() = user_id OR 
+    auth.jwt()->>'email' IN ('rajshahi.shojib@gmail.com', 'rajshahi.jibon@gmail.com', 'rajshahi.sumi@gmail.com') OR
+    auth.uid() = '329a8566-838f-4e61-a91c-2e6c6d492420'
 );
 
--- ইউজার পলিসি: এডমিনরা সব ইউজার দেখতে পারবে
-CREATE POLICY "Admins can view all users" 
-ON public.users FOR SELECT 
-TO authenticated 
+-- ৭. প্রোজেক্ট টেবিল পলিসি
+CREATE POLICY "Project Access Control"
+ON public.projects FOR ALL
 USING (
-  auth.jwt() ->> 'email' IN ('rajshahi.jibon@gmail.com', 'rajshahi.shojib@gmail.com', 'rajshahi.sumi@gmail.com')
+    auth.uid() = user_id OR 
+    auth.jwt()->>'email' IN ('rajshahi.shojib@gmail.com', 'rajshahi.jibon@gmail.com', 'rajshahi.sumi@gmail.com') OR
+    auth.uid() = '329a8566-838f-4e61-a91c-2e6c6d492420'
 );
 
-CREATE POLICY "Admins can update users" 
-ON public.users FOR UPDATE 
-TO authenticated 
+-- ৮. সিস্টেম লগ পলিসি (এখানেই জীবন এর সমস্যা ছিল)
+CREATE POLICY "System Logs Access"
+ON public.activity_logs FOR ALL
 USING (
-  auth.jwt() ->> 'email' IN ('rajshahi.jibon@gmail.com', 'rajshahi.shojib@gmail.com', 'rajshahi.sumi@gmail.com')
+    auth.jwt()->>'email' IN ('rajshahi.shojib@gmail.com', 'rajshahi.jibon@gmail.com', 'rajshahi.sumi@gmail.com') OR
+    auth.uid() = '329a8566-838f-4e61-a91c-2e6c6d492420'
 );
-
--- সাধারণ ইউজারদের পলিসি
-CREATE POLICY "Users can manage their own transactions" ON public.transactions FOR ALL TO authenticated USING (auth.uid() = user_id);
-CREATE POLICY "Users can manage their own projects" ON public.projects FOR ALL TO authenticated USING (auth.uid() = user_id);
-CREATE POLICY "Users can see their own profile" ON public.users FOR ALL TO authenticated USING (auth.uid() = id);
