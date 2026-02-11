@@ -52,32 +52,34 @@ const DashboardView: React.FC<DashboardViewProps> = (props) => {
           />
         </div>
 
-        {/* Mobile-Only Top Floating Elements */}
-        <div className="lg:hidden fixed top-20 left-4 right-4 z-[200] flex items-center justify-between pointer-events-none">
-           {/* Mobile Tab Switcher (Top Center-ish) */}
-           <div className="bg-black/60 backdrop-blur-xl p-1 rounded-2xl border border-white/10 flex gap-1 pointer-events-auto shadow-2xl">
+        {/* Enhanced Mobile-Only Floating UI */}
+        <div className="lg:hidden fixed top-20 left-0 right-0 z-[200] px-4 pointer-events-none flex flex-col items-center gap-4">
+           <div className="w-full flex items-center justify-between max-w-[500px]">
+              {/* Centered Large Mobile Tab Switcher */}
+              <div className="bg-black/80 backdrop-blur-2xl p-1.5 rounded-[1.5rem] border border-white/10 flex gap-1 pointer-events-auto shadow-[0_10px_30px_rgba(0,0,0,0.5)] ring-1 ring-white/5">
+                <button 
+                  onClick={() => props.setMobileTab('chat')} 
+                  className={`flex items-center gap-3 px-6 py-3 rounded-2xl text-[11px] font-black uppercase transition-all duration-300 ${props.mobileTab === 'chat' ? 'bg-pink-600 text-white shadow-[0_0_20px_rgba(236,72,153,0.4)]' : 'text-zinc-500 hover:text-white'}`}
+                >
+                  <MessageSquare size={16}/> <span>Chat</span>
+                </button>
+                <button 
+                  onClick={() => props.setMobileTab('preview')} 
+                  className={`flex items-center gap-3 px-6 py-3 rounded-2xl text-[11px] font-black uppercase transition-all duration-300 ${props.mobileTab === 'preview' ? 'bg-pink-600 text-white shadow-[0_0_20px_rgba(236,72,153,0.4)]' : 'text-zinc-500 hover:text-white'}`}
+                >
+                  <Smartphone size={16}/> <span>Visual</span>
+                </button>
+              </div>
+
+              {/* Enlarged Mobile Build Button */}
               <button 
-                onClick={() => props.setMobileTab('chat')} 
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[9px] font-black uppercase transition-all ${props.mobileTab === 'chat' ? 'bg-pink-600 text-white shadow-lg' : 'text-zinc-500 hover:text-white'}`}
+                onClick={props.handleBuildAPK}
+                className="bg-gradient-to-br from-pink-500 to-rose-600 p-4 rounded-[1.5rem] text-white shadow-[0_10px_30px_rgba(236,72,153,0.3)] pointer-events-auto active:scale-90 transition-all border border-white/20 flex items-center justify-center group"
               >
-                <MessageSquare size={12}/> {props.mobileTab === 'chat' && 'Chat'}
-              </button>
-              <button 
-                onClick={() => props.setMobileTab('preview')} 
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-[9px] font-black uppercase transition-all ${props.mobileTab === 'preview' ? 'bg-pink-600 text-white shadow-lg' : 'text-zinc-500 hover:text-white'}`}
-              >
-                <Smartphone size={12}/> {props.mobileTab === 'preview' && 'Visual'}
+                <Rocket size={20} className="group-active:animate-bounce" />
+                <span className="ml-2 text-[10px] font-black uppercase tracking-widest hidden sm:inline">Execute Build</span>
               </button>
            </div>
-
-           {/* Small Mobile Build Button (Top Right) */}
-           <button 
-             onClick={props.handleBuildAPK}
-             className="bg-gradient-to-r from-pink-600 to-rose-600 p-3 rounded-2xl text-white shadow-lg shadow-pink-500/20 pointer-events-auto active:scale-90 transition-transform flex items-center gap-2 border border-white/20"
-           >
-              <Rocket size={16}/>
-              <span className="text-[9px] font-black uppercase tracking-widest hidden sm:inline">Build</span>
-           </button>
         </div>
 
         {/* Desktop Floating Build Button - Only visible on LG+ */}
