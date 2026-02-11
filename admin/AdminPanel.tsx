@@ -12,9 +12,13 @@ import PaymentTable from './components/PaymentTable';
 import PackageList from './components/PackageList';
 import AdminModals from './components/AdminModals';
 
-interface AdminPanelProps { user: UserType; }
+interface AdminPanelProps { 
+    user: UserType; 
+    onApprovePayment: (txId: string) => Promise<void>;
+    onRejectPayment: (txId: string) => Promise<void>;
+}
 
-const AdminPanel: React.FC<AdminPanelProps> = ({ user }) => {
+const AdminPanel: React.FC<AdminPanelProps> = ({ user, onApprovePayment, onRejectPayment }) => {
   const [activeTab, setActiveTab] = useState<'stats' | 'users' | 'payments' | 'packages' | 'logs'>('stats');
   const [stats, setStats] = useState({ totalRevenue: 0, usersToday: 0, topPackage: 'N/A', salesCount: 0, chartData: [] });
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -48,6 +52,16 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ user }) => {
   };
 
   useEffect(() => { loadData(); }, [activeTab]);
+
+  const handleApprove = async (id: string) => {
+    await onApprovePayment(id);
+    loadData();
+  };
+
+  const handleReject = async (id: string) => {
+    await onRejectPayment(id);
+    loadData();
+  };
 
   const handleUpdateTokens = async () => {
     if (!editingUser) return;
@@ -109,7 +123,16 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ user }) => {
                 </div>
               </div>
             )}
-            {activeTab === 'payments' && <PaymentTable transactions={transactions} searchQuery={searchQuery} setSearchQuery={setSearchQuery} setPreviewImage={setPreviewImage} handleApprove={() => {}} handleReject={() => {}} />}
+            {activeTab === 'payments' && (
+                <PaymentTable 
+                    transactions={transactions} 
+                    searchQuery={searchQuery} 
+                    setSearchQuery={setSearchQuery} 
+                    setPreviewImage={setPreviewImage} 
+                    handleApprove={handleApprove} 
+                    handleReject={handleReject} 
+                />
+            )}
             {activeTab === 'users' && <UserTable users={adminUsers} searchQuery={searchQuery} setSearchQuery={setSearchQuery} setEditingUser={setEditingUser} setNewTokenCount={setNewTokenCount} handleBanToggle={() => {}} />}
             {activeTab === 'packages' && <PackageList packages={packages} setEditingPackage={setEditingPackage} setShowEditPackageModal={setShowEditPackageModal} handleDeletePackage={() => {}} setShowPackageModal={setShowPackageModal} />}
             {activeTab === 'logs' && <div className="glass-tech rounded-[2.5rem] p-8 space-y-4">{activityLogs.map(log => <div key={log.id} className="text-[11px] bg-white/5 p-4 rounded-xl">{log.details}</div>)}</div>}

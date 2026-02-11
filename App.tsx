@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Loader2, ArrowLeft } from 'lucide-react';
 import { AppMode, Package, Transaction, Project } from './types.ts';
 import { DatabaseService } from './services/dbService.ts';
@@ -52,6 +52,7 @@ const App: React.FC = () => {
   const [isUpdatingPass, setIsUpdatingPass] = useState(false);
 
   const db = DatabaseService.getInstance();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const handlePopState = () => setPath(window.location.pathname);
@@ -75,13 +76,54 @@ const App: React.FC = () => {
     alert("GitHub Configuration Synced!");
   };
 
+  const handlePaymentScreenshotUpload = () => {
+    if (fileInputRef.current) fileInputRef.current.click();
+  };
+
+  const onScreenshotFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPaymentForm(prev => ({ ...prev, screenshot: reader.result as string }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handlePaymentSubmit = async () => {
-    if (!selectedPkg || !paymentMethod || !paymentForm.trxId || !user) return;
+    if (!selectedPkg || !paymentMethod || !paymentForm.trxId || !user) {
+        alert("সবগুলো তথ্য সঠিকভাবে পূরণ করুন।");
+        return;
+    }
     setPaymentSubmitting(true);
     try {
       const success = await db.submitPaymentRequest(user.id, selectedPkg.id, selectedPkg.price, paymentMethod, paymentForm.trxId, paymentForm.screenshot, paymentForm.message);
-      if (success) { setPaymentStep('success'); setPaymentForm({ trxId: '', screenshot: '', message: '' }); }
+      if (success) { 
+        setPaymentStep('success'); 
+        setPaymentForm({ trxId: '', screenshot: '', message: '' }); 
+        db.getUserTransactions(user.id).then(setUserTransactions);
+      }
     } catch (e: any) { alert(e.message || "Payment request failed."); } finally { setPaymentSubmitting(false); }
+  };
+
+  const handleApprovePayment = async (txId: string) => {
+    try {
+        const tx = await db.updateTransactionStatus(txId, 'completed');
+        // Find package to get token count
+        const pkg = packages.find(p => p.id === tx.package_id);
+        if (pkg) {
+            await db.addUserTokens(tx.user_id, pkg.tokens);
+            alert("Payment Approved! Tokens added to user account.");
+        }
+    } catch (e: any) { alert(e.message); }
+  };
+
+  const handleRejectPayment = async (txId: string) => {
+    try {
+        await db.updateTransactionStatus(txId, 'rejected');
+        alert("Payment Rejected.");
+    } catch (e: any) { alert(e.message); }
   };
 
   const handlePasswordChange = async () => {
@@ -116,15 +158,27 @@ const App: React.FC = () => {
       <Header user={user} path={path} mode={mode} navigateTo={navigateTo} />
       
       <main className="flex-1 flex overflow-hidden relative">
+        <input 
+            type="file" 
+            ref={fileInputRef} 
+            className="hidden" 
+            accept="image/*" 
+            onChange={onScreenshotFileChange} 
+        />
+        
         {path === '/admin' && user.isAdmin ? (
-          <AdminPanel user={user} />
+          <AdminPanel 
+            user={user} 
+            onApprovePayment={handleApprovePayment} 
+            onRejectPayment={handleRejectPayment}
+          />
         ) : path === '/shop' ? (
           <ShopView 
             packages={packages} paymentStep={paymentStep} setPaymentStep={setPaymentStep}
             selectedPkg={selectedPkg} setSelectedPkg={setSelectedPkg} paymentMethod={paymentMethod}
             setPaymentMethod={setPaymentMethod} paymentForm={paymentForm} setPaymentForm={setPaymentForm}
             paymentSubmitting={paymentSubmitting} handlePaymentSubmit={handlePaymentSubmit}
-            handlePaymentScreenshotUpload={() => {}} 
+            handlePaymentScreenshotUpload={handlePaymentScreenshotUpload} 
           />
         ) : path === '/profile' ? (
           <ProfileView 

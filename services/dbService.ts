@@ -178,9 +178,27 @@ export class DatabaseService {
   async signUp(email: string, password: string, name?: string) { return await this.supabase.auth.signUp({ email, password, options: { data: { full_name: name } } }); }
   async getPackages() { const { data } = await this.supabase.from('packages').select('*'); return data || []; }
   async getUserTransactions(userId: string) { const { data } = await this.supabase.from('transactions').select('*, packages(name)').eq('user_id', userId); return data || []; }
+  
   async submitPaymentRequest(userId: string, pkgId: string, amount: number, method: string, trxId: string, screenshot?: string, message?: string) {
     const { data } = await this.supabase.from('transactions').insert({ user_id: userId, package_id: pkgId, amount, status: 'pending', payment_method: method, trx_id: trxId, screenshot_url: screenshot, message }).select();
     return !!data;
+  }
+
+  async updateTransactionStatus(id: string, status: 'completed' | 'rejected') {
+    const { data, error } = await this.supabase
+      .from('transactions')
+      .update({ status })
+      .eq('id', id)
+      .select().single();
+    if (error) throw error;
+    return data;
+  }
+
+  async addUserTokens(userId: string, tokens: number) {
+    const { data: user } = await this.supabase.from('users').select('tokens').eq('id', userId).single();
+    if (!user) return;
+    const { error } = await this.supabase.from('users').update({ tokens: (user.tokens || 0) + tokens }).eq('id', userId);
+    if (error) throw error;
   }
 
   async updateGithubConfig(userId: string, config: GithubConfig) {
