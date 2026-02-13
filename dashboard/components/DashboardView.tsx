@@ -35,6 +35,7 @@ interface DashboardViewProps {
   handleImageSelect: (file: File) => void;
   projectConfig: ProjectConfig;
   setProjectConfig: (config: ProjectConfig) => void;
+  projectId?: string | null;
 }
 
 const DashboardView: React.FC<DashboardViewProps> = (props) => {
@@ -53,6 +54,7 @@ const DashboardView: React.FC<DashboardViewProps> = (props) => {
             handleBuildAPK={props.handleBuildAPK} mobileTab={props.mobileTab}
             isGenerating={props.isGenerating}
             projectConfig={props.projectConfig}
+            projectId={props.projectId}
           />
         </div>
 
@@ -121,8 +123,11 @@ const DashboardView: React.FC<DashboardViewProps> = (props) => {
         </div>
       ) : (
         <BuildStatusDisplay 
-          status={props.buildStatus.status} message={props.buildStatus.message}
-          apkUrl={props.buildStatus.apkUrl} buildSteps={props.buildSteps}
+          status={props.buildStatus.status} 
+          message={props.buildStatus.message}
+          apkUrl={props.buildStatus.apkUrl} 
+          webUrl={props.buildStatus.webUrl}
+          buildSteps={props.buildSteps}
           handleSecureDownload={props.handleSecureDownload}
           resetBuild={() => props.setBuildStatus({ status: 'idle', message: '' })}
         />
