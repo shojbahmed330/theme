@@ -4,10 +4,10 @@ import { CheckCircle2, Circle, Clock, XCircle, Loader2 } from 'lucide-react';
 import { BuildStep } from '../../types';
 
 interface BuildConsoleProps {
-  steps: BuildStep[];
+  buildSteps: BuildStep[];
 }
 
-const BuildConsole: React.FC<BuildConsoleProps> = ({ steps }) => {
+const BuildConsole: React.FC<BuildConsoleProps> = ({ buildSteps = [] }) => {
   return (
     <div className="w-full max-w-xl mx-auto bg-black/40 border border-white/5 rounded-2xl overflow-hidden mt-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="bg-white/5 px-4 py-2 border-b border-white/5 flex items-center justify-between">
@@ -20,8 +20,8 @@ const BuildConsole: React.FC<BuildConsoleProps> = ({ steps }) => {
       </div>
       
       <div className="p-4 space-y-3 max-h-[300px] overflow-y-auto custom-scrollbar">
-        {steps.length > 0 ? (
-          steps.map((step, idx) => (
+        {buildSteps && buildSteps.length > 0 ? (
+          buildSteps.map((step, idx) => (
             <div key={idx} className="flex items-center justify-between group">
               <div className="flex items-center gap-3">
                 {step.status === 'completed' ? (
