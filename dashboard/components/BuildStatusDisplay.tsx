@@ -1,6 +1,6 @@
 
-import React, { useState } from 'react';
-import { CheckCircle2, Smartphone, Download, ArrowLeft, Loader2, SmartphoneNfc, ExternalLink, Link2 } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { CheckCircle2, Smartphone, Download, ArrowLeft, Loader2, SmartphoneNfc, ExternalLink, Copy, Check } from 'lucide-react';
 import BuildConsole from './BuildConsole';
 import { BuildStep } from '../../types';
 
@@ -17,12 +17,37 @@ interface BuildStatusDisplayProps {
 const BuildStatusDisplay: React.FC<BuildStatusDisplayProps> = ({
   status, message, apkUrl, webUrl, buildSteps, handleSecureDownload, resetBuild
 }) => {
-  const [qrLoaded, setQrLoaded] = useState(false);
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
 
-  // High-reliability QR API URL
-  const qrCodeUrl = webUrl 
-    ? `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(webUrl)}&color=000&bgcolor=fff&ecc=H`
-    : null;
+  useEffect(() => {
+    if (status === 'success' && webUrl) {
+      // Import the library dynamically from ESM.sh
+      import('https://esm.sh/qrcode').then(QRCode => {
+        QRCode.toDataURL(webUrl, {
+          width: 250,
+          margin: 1,
+          color: {
+            dark: '#000000',
+            light: '#ffffff'
+          },
+          errorCorrectionLevel: 'H'
+        }).then(url => {
+          setQrDataUrl(url);
+        }).catch(err => {
+          console.error("QR Generation Failed:", err);
+        });
+      });
+    }
+  }, [status, webUrl]);
+
+  const copyUrl = () => {
+    if (webUrl) {
+      navigator.clipboard.writeText(webUrl);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-6 md:p-10 overflow-y-auto bg-[#09090b]">
@@ -39,22 +64,19 @@ const BuildStatusDisplay: React.FC<BuildStatusDisplayProps> = ({
             </div>
 
             <div className="flex flex-col md:flex-row items-center justify-center gap-10 py-6">
-              {/* QR Code Section - Now using highly reliable API */}
+              {/* Local QR Code Generation - Guaranteed to work */}
               <div className="flex flex-col items-center gap-4">
                 <div className="relative p-4 bg-white rounded-[2rem] shadow-[0_0_50px_rgba(236,72,153,0.3)] border-4 border-pink-500/20 w-[200px] h-[200px] flex items-center justify-center overflow-hidden">
-                  {qrCodeUrl && (
+                  {qrDataUrl ? (
                     <img 
-                      src={qrCodeUrl} 
+                      src={qrDataUrl} 
                       alt="Build Artifact QR"
-                      className={`w-full h-full object-contain transition-opacity duration-700 ${qrLoaded ? 'opacity-100' : 'opacity-0'}`}
-                      onLoad={() => setQrLoaded(true)}
+                      className="w-full h-full object-contain animate-in fade-in duration-300"
                     />
-                  )}
-                  
-                  {!qrLoaded && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-white rounded-[1.8rem]">
+                  ) : (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-white">
                       <Loader2 className="animate-spin text-pink-500" size={24}/>
-                      <span className="text-[8px] font-bold text-zinc-400 uppercase tracking-widest text-center px-4">Establishing Secure Link...</span>
+                      <span className="text-[8px] font-bold text-zinc-400 uppercase tracking-widest text-center px-4">Local Engine Initializing...</span>
                     </div>
                   )}
                 </div>
@@ -62,7 +84,13 @@ const BuildStatusDisplay: React.FC<BuildStatusDisplayProps> = ({
                   <span className="text-[10px] font-black text-pink-500 uppercase tracking-widest flex items-center gap-2">
                     <SmartphoneNfc size={12}/> Scan with Camera
                   </span>
-                  <span className="text-[8px] text-zinc-600 uppercase font-bold">Installs APK Directly</span>
+                  <button 
+                    onClick={copyUrl}
+                    className="flex items-center gap-2 text-[8px] text-zinc-600 uppercase font-black hover:text-white transition-colors mt-1"
+                  >
+                    {copied ? <Check size={10} className="text-green-500"/> : <Copy size={10}/>}
+                    {copied ? 'Copied to Clipboard' : 'Copy Artifact Link'}
+                  </button>
                 </div>
               </div>
 
@@ -80,13 +108,13 @@ const BuildStatusDisplay: React.FC<BuildStatusDisplayProps> = ({
                     onClick={() => window.open(webUrl, '_blank')}
                     className="w-full flex items-center justify-center gap-3 py-4 bg-white/5 border border-white/10 hover:bg-white/10 text-white rounded-2xl font-black uppercase text-[10px] transition-all"
                   >
-                    <ExternalLink size={16}/> Direct Link
+                    <ExternalLink size={16}/> View Artifacts on GitHub
                   </button>
                 )}
                 
                 <div className="p-4 bg-white/5 rounded-2xl border border-white/5">
                   <p className="text-[9px] text-zinc-500 uppercase font-bold leading-relaxed">
-                    Build artifacts are on GitHub. Scan the code to access them on your smartphone instantly.
+                    Build artifacts are ready. Scan the code or use the link to install the APK directly on your device.
                   </p>
                 </div>
               </div>

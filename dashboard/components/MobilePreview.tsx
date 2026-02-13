@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Smartphone, Sparkles, Loader2, Cpu, QrCode, X, Copy, ExternalLink, SmartphoneNfc } from 'lucide-react';
+import { Smartphone, Sparkles, Loader2, Cpu, QrCode, X, Copy, ExternalLink, SmartphoneNfc, Check } from 'lucide-react';
 import { AppMode, ProjectConfig } from '../../types';
 import { buildFinalHtml } from '../../utils/previewBuilder';
 
@@ -19,15 +19,31 @@ const MobilePreview: React.FC<MobilePreviewProps> = ({
 }) => {
   const [showSplash, setShowSplash] = useState(false);
   const [showQrModal, setShowQrModal] = useState(false);
-  const [qrLoaded, setQrLoaded] = useState(false);
+  const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
   
   const finalHtml = buildFinalHtml(projectFiles);
   const hasFiles = Object.keys(projectFiles).length > 0 && projectFiles['index.html'];
 
   const previewUrl = projectId ? `${window.location.origin}/preview/${projectId}` : null;
-  const qrCodeUrl = previewUrl 
-    ? `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(previewUrl)}&color=ec4899&bgcolor=fff&ecc=H`
-    : null;
+
+  useEffect(() => {
+    if (showQrModal && previewUrl) {
+      import('https://esm.sh/qrcode').then(QRCode => {
+        QRCode.toDataURL(previewUrl, {
+          width: 250,
+          margin: 1,
+          color: {
+            dark: '#ec4899', // Pink theme
+            light: '#ffffff'
+          },
+          errorCorrectionLevel: 'H'
+        }).then(url => {
+          setQrDataUrl(url);
+        });
+      });
+    }
+  }, [showQrModal, previewUrl]);
 
   useEffect(() => {
     if (hasFiles && !isGenerating) {
@@ -40,7 +56,8 @@ const MobilePreview: React.FC<MobilePreviewProps> = ({
   const copyLink = () => {
     if (previewUrl) {
       navigator.clipboard.writeText(previewUrl);
-      alert('Preview link copied!');
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     }
   };
 
@@ -154,7 +171,7 @@ const MobilePreview: React.FC<MobilePreviewProps> = ({
         <div className="fixed inset-0 z-[500] flex items-center justify-center bg-black/90 backdrop-blur-xl p-6 animate-in fade-in duration-300">
           <div className="max-w-md w-full glass-tech p-10 rounded-[3rem] border-pink-500/20 flex flex-col items-center text-center relative animate-in zoom-in duration-500">
             <button 
-              onClick={() => { setShowQrModal(false); setQrLoaded(false); }}
+              onClick={() => { setShowQrModal(false); setQrDataUrl(null); }}
               className="absolute top-8 right-8 p-3 bg-white/5 hover:bg-white/10 rounded-2xl text-zinc-500 hover:text-white transition-all"
             >
               <X size={20}/>
@@ -169,15 +186,13 @@ const MobilePreview: React.FC<MobilePreviewProps> = ({
             </div>
 
             <div className="p-4 bg-white rounded-3xl mb-8 shadow-[0_0_50px_rgba(236,72,153,0.2)] w-[240px] h-[240px] flex items-center justify-center relative overflow-hidden">
-               {qrCodeUrl && (
+               {qrDataUrl ? (
                   <img 
-                    src={qrCodeUrl} 
+                    src={qrDataUrl} 
                     alt="Mobile Preview QR"
-                    className={`w-full h-full object-contain transition-opacity duration-500 ${qrLoaded ? 'opacity-100' : 'opacity-0'}`}
-                    onLoad={() => setQrLoaded(true)}
+                    className="w-full h-full object-contain animate-in fade-in duration-300"
                   />
-               )}
-               {!qrLoaded && (
+               ) : (
                   <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-white">
                     <Loader2 className="animate-spin text-pink-500" size={24}/>
                   </div>
@@ -187,7 +202,9 @@ const MobilePreview: React.FC<MobilePreviewProps> = ({
             <div className="space-y-6 w-full">
               <div className="bg-black/40 border border-white/5 p-4 rounded-2xl flex items-center justify-between gap-4">
                 <span className="text-[10px] font-mono text-zinc-500 truncate">{previewUrl}</span>
-                <button onClick={copyLink} className="p-2.5 bg-white/5 hover:bg-pink-600 rounded-xl transition-all"><Copy size={14}/></button>
+                <button onClick={copyLink} className="p-2.5 bg-white/5 hover:bg-pink-600 rounded-xl transition-all">
+                  {copied ? <Check size={14}/> : <Copy size={14}/>}
+                </button>
               </div>
 
               <div className="flex gap-3">
@@ -198,7 +215,7 @@ const MobilePreview: React.FC<MobilePreviewProps> = ({
                   <ExternalLink size={14}/> Open Web
                 </button>
                 <button 
-                  onClick={() => { setShowQrModal(false); setQrLoaded(false); }}
+                  onClick={() => { setShowQrModal(false); setQrDataUrl(null); }}
                   className="flex-1 py-4 bg-pink-600 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all shadow-xl shadow-pink-600/20"
                 >
                   Done
