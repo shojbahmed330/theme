@@ -160,7 +160,16 @@ export class DatabaseService {
 
   async updatePassword(newPassword: string) { await this.supabase.auth.updateUser({ password: newPassword }); }
   async resetPassword(email: string) { return await this.supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + '/profile' }); }
-  async signInWithOAuth(provider: 'github' | 'google') { return await this.supabase.auth.signInWithOAuth({ provider }); }
+  
+  async signInWithOAuth(provider: 'github' | 'google') { 
+    return await this.supabase.auth.signInWithOAuth({ 
+      provider,
+      options: {
+        redirectTo: window.location.origin + '/profile'
+      }
+    }); 
+  }
+
   async signUp(email: string, password: string, name?: string) { return await this.supabase.auth.signUp({ email, password, options: { data: { full_name: name } } }); }
   
   async getPackages() { 
