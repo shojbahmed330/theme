@@ -88,38 +88,29 @@ export class DatabaseService {
     } catch (e) { return null; }
   }
 
-  async toggleAdminStatus(userId: string, status: boolean) {
-    const { error } = await this.supabase.from('users').update({ is_admin: status }).eq('id', userId);
-    if (error) throw error;
-  }
-
-  async toggleBanStatus(userId: string, status: boolean) {
-    const { error } = await this.supabase.from('users').update({ is_banned: status }).eq('id', userId);
-    if (error) throw error;
-  }
-
-  async getAdminTransactions(): Promise<Transaction[]> {
-    const { data, error } = await this.supabase.from('transactions').select('*, packages(name), users(email)').order('created_at', { ascending: false });
-    if (error) return [];
-    return (data || []).map((tx: any) => ({ ...tx, user_email: tx.users?.email || 'Unknown' }));
-  }
-
-  async updateTransactionStatus(id: string, status: 'completed' | 'rejected') {
-    const { data, error } = await this.supabase.from('transactions').update({ status }).eq('id', id).select().single();
-    if (error) throw error;
-    return data;
-  }
-
-  async addUserTokens(userId: string, tokens: number) {
-    const { data: user } = await this.supabase.from('users').select('tokens').eq('id', userId).single();
-    if (!user) return;
-    await this.supabase.from('users').update({ tokens: (user.tokens || 0) + tokens }).eq('id', userId);
-  }
-
   async updateGithubConfig(userId: string, config: GithubConfig) {
-    await this.supabase.from('users').update({ github_token: config.token, github_owner: config.owner, github_repo: config.repo }).eq('id', userId);
+    await this.supabase.from('users').update({ 
+      github_token: config.token, 
+      github_owner: config.owner, 
+      github_repo: config.repo 
+    }).eq('id', userId);
   }
 
+  async updateGithubTokenOnly(userId: string, token: string) {
+    await this.supabase.from('users').update({ github_token: token }).eq('id', userId);
+  }
+
+  async signInWithOAuth(provider: 'github' | 'google') { 
+    return await this.supabase.auth.signInWithOAuth({ 
+      provider,
+      options: {
+        redirectTo: window.location.origin + '/profile',
+        scopes: provider === 'github' ? 'repo workflow' : undefined
+      }
+    }); 
+  }
+
+  // Rest of existing methods...
   async getProjects(userId: string): Promise<Project[]> {
     const { data } = await this.supabase.from('projects').select('*').eq('user_id', userId).order('updated_at', { ascending: false });
     return data || [];
@@ -151,7 +142,6 @@ export class DatabaseService {
   async useToken(userId: string, email: string): Promise<User | null> {
     const userResult = await this.getUser(email, userId);
     if (userResult?.isAdmin) return userResult;
-    
     if (userResult && userResult.tokens > 0) {
       await this.supabase.from('users').update({ tokens: userResult.tokens - 1 }).eq('id', userId);
     }
@@ -160,51 +150,37 @@ export class DatabaseService {
 
   async updatePassword(newPassword: string) { await this.supabase.auth.updateUser({ password: newPassword }); }
   async resetPassword(email: string) { return await this.supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + '/profile' }); }
-  
-  async signInWithOAuth(provider: 'github' | 'google') { 
-    return await this.supabase.auth.signInWithOAuth({ 
-      provider,
-      options: {
-        redirectTo: window.location.origin + '/profile'
-      }
-    }); 
-  }
-
   async signUp(email: string, password: string, name?: string) { return await this.supabase.auth.signUp({ email, password, options: { data: { full_name: name } } }); }
-  
-  async getPackages() { 
-    const { data } = await this.supabase.from('packages').select('*').order('price', { ascending: true }); 
-    return data || []; 
-  }
-
-  async getUserTransactions(userId: string) { 
-    const { data } = await this.supabase.from('transactions').select('*, packages(name)').eq('user_id', userId); 
-    return data || []; 
-  }
-  
+  async getPackages() { const { data } = await this.supabase.from('packages').select('*').order('price', { ascending: true }); return data || []; }
+  async getUserTransactions(userId: string) { const { data } = await this.supabase.from('transactions').select('*, packages(name)').eq('user_id', userId); return data || []; }
   async submitPaymentRequest(userId: string, pkgId: string, amount: number, method: string, trxId: string, screenshot?: string, message?: string) {
     const { data } = await this.supabase.from('transactions').insert({ user_id: userId, package_id: pkgId, amount, status: 'pending', payment_method: method, trx_id: trxId, screenshot_url: screenshot, message }).select();
     return !!data;
   }
 
+  async toggleAdminStatus(userId: string, status: boolean) { await this.supabase.from('users').update({ is_admin: status }).eq('id', userId); }
+  async toggleBanStatus(userId: string, status: boolean) { await this.supabase.from('users').update({ is_banned: status }).eq('id', userId); }
+  async getAdminTransactions(): Promise<Transaction[]> {
+    const { data } = await this.supabase.from('transactions').select('*, packages(name), users(email)').order('created_at', { ascending: false });
+    return (data || []).map((tx: any) => ({ ...tx, user_email: tx.users?.email || 'Unknown' }));
+  }
+  async updateTransactionStatus(id: string, status: 'completed' | 'rejected') {
+    const { data } = await this.supabase.from('transactions').update({ status }).eq('id', id).select().single();
+    return data;
+  }
+  async addUserTokens(userId: string, tokens: number) {
+    const { data: user } = await this.supabase.from('users').select('tokens').eq('id', userId).single();
+    if (user) await this.supabase.from('users').update({ tokens: (user.tokens || 0) + tokens }).eq('id', userId);
+  }
   async getAdminStats() {
     try {
       const { count: usersToday } = await this.supabase.from('users').select('*', { count: 'exact', head: true });
       const { data: transactions } = await this.supabase.from('transactions').select('amount').eq('status', 'completed');
       const totalRevenue = transactions?.reduce((sum, tx) => sum + (tx.amount || 0), 0) || 0;
-      const salesCount = transactions?.length || 0;
-      return { totalRevenue, usersToday: usersToday || 0, topPackage: 'Professional', salesCount, chartData: [{ date: 'Mon', revenue: totalRevenue * 0.1 }, { date: 'Tue', revenue: totalRevenue * 0.2 }, { date: 'Wed', revenue: totalRevenue * 0.15 }, { date: 'Thu', revenue: totalRevenue * 0.25 }, { date: 'Fri', revenue: totalRevenue * 0.3 }] };
-    } catch (e) {
-      console.error("Admin stats fetch error:", e);
-      return { totalRevenue: 0, usersToday: 0, topPackage: 'N/A', salesCount: 0, chartData: [] };
-    }
+      return { totalRevenue, usersToday: usersToday || 0, topPackage: 'Professional', salesCount: transactions?.length || 0, chartData: [{ date: 'Mon', revenue: totalRevenue * 0.1 }, { date: 'Tue', revenue: totalRevenue * 0.2 }, { date: 'Wed', revenue: totalRevenue * 0.15 }, { date: 'Thu', revenue: totalRevenue * 0.25 }, { date: 'Fri', revenue: totalRevenue * 0.3 }] };
+    } catch (e) { return { totalRevenue: 0, usersToday: 0, topPackage: 'N/A', salesCount: 0, chartData: [] }; }
   }
-
-  async getActivityLogs(): Promise<ActivityLog[]> {
-    const { data } = await this.supabase.from('activity_logs').select('*').order('created_at', { ascending: false });
-    return data || [];
-  }
-
+  async getActivityLogs(): Promise<ActivityLog[]> { const { data } = await this.supabase.from('activity_logs').select('*').order('created_at', { ascending: false }); return data || []; }
   async createPackage(pkg: Partial<Package>) { await this.supabase.from('packages').insert(pkg); }
   async updatePackage(id: string, pkg: Partial<Package>) { await this.supabase.from('packages').update(pkg).eq('id', id); }
   async deletePackage(id: string) { await this.supabase.from('packages').delete().eq('id', id); }

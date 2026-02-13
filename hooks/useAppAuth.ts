@@ -30,6 +30,12 @@ export const useAppAuth = (navigateTo: (path: string, mode?: AppMode) => void) =
       }
 
       try {
+        // Automatically sync GitHub OAuth token if available in session
+        const providerToken = session.provider_token;
+        if (providerToken && session.user.app_metadata?.provider === 'github') {
+          await db.updateGithubTokenOnly(session.user.id, providerToken);
+        }
+
         const userData = await db.getUser(session.user.email || '', session.user.id);
         if (userData) { 
           setUser(userData); 

@@ -22,10 +22,21 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
 
   const [selectedFile, setSelectedFile] = useState('index.html');
   const [githubConfig, setGithubConfig] = useState<GithubConfig>({ 
-    token: user?.github_token || '', 
-    repo: user?.github_repo || '', 
-    owner: user?.github_owner || '' 
+    token: '', 
+    repo: '', 
+    owner: '' 
   });
+
+  // Sync githubConfig with user object whenever user changes
+  useEffect(() => {
+    if (user) {
+      setGithubConfig({
+        token: user.github_token || '',
+        owner: user.github_owner || '',
+        repo: user.github_repo || ''
+      });
+    }
+  }, [user]);
   
   const [buildStatus, setBuildStatus] = useState<{ status: 'idle' | 'pushing' | 'building' | 'success' | 'error', message: string, apkUrl?: string, webUrl?: string }>({ status: 'idle', message: '' });
   const [buildSteps, setBuildSteps] = useState<BuildStep[]>([]);
@@ -117,7 +128,8 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
   };
 
   const handleBuildAPK = async (navigateToProfile: () => void) => {
-    if (!githubConfig.token) { 
+    // If token is missing, the build engine cannot work
+    if (!githubConfig.token || githubConfig.token.length < 10) { 
       navigateToProfile(); 
       return; 
     }
@@ -126,7 +138,6 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
     setBuildStatus({ status: 'pushing', message: 'Initializing Cloud Repository...' });
     
     try {
-      // 1. Auto-generate Repo Name from App Name
       const sanitizedName = (projectConfig.appName || 'OneClickApp')
         .toLowerCase()
         .replace(/[^a-z0-9]/g, '-')
@@ -134,8 +145,6 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
         .replace(/^-|-$/g, '');
         
       const finalRepoName = `${sanitizedName}-studio`;
-
-      // 2. Create Repository Automatically
       const owner = await github.current.createRepo(githubConfig.token, finalRepoName);
       
       const updatedConfig = { 
@@ -145,17 +154,11 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
       };
       
       setGithubConfig(updatedConfig);
-      
-      // Update DB with the new dynamic config
-      if (user) {
-          await db.updateGithubConfig(user.id, updatedConfig);
-      }
+      if (user) await db.updateGithubConfig(user.id, updatedConfig);
 
-      // 3. Push Code
       setBuildStatus({ status: 'pushing', message: 'Syncing source code...' });
       await github.current.pushToGithub(updatedConfig, projectFiles, projectConfig);
       
-      // 4. Start Build Loop
       setBuildStatus({ status: 'building', message: 'Compiling Android Binary...' });
       const checkInterval = setInterval(async () => {
         const runDetails = await github.current.getRunDetails(updatedConfig);
