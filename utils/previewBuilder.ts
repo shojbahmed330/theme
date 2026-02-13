@@ -2,18 +2,47 @@
 export const buildFinalHtml = (projectFiles: Record<string, string>) => {
   const polyfill = `
     <script>
+      // Enhanced Native Bridge Simulation
       window.NativeBridge = {
         getUsageStats: () => Promise.resolve({ screenTime: '4h 20m', topApp: 'Social Media' }),
-        requestPermission: (p) => Promise.resolve(true),
-        showToast: (m) => { console.log('Native Toast:', m); },
-        vibrate: () => { window.navigator.vibrate ? window.navigator.vibrate(200) : console.log('Vibrating...'); },
+        requestPermission: async (p) => {
+           console.log('Requesting Permission for:', p);
+           if (p === 'camera') {
+             try { await navigator.mediaDevices.getUserMedia({ video: true }); return true; } catch(e) { return false; }
+           }
+           if (p === 'geolocation') {
+             return new Promise((resolve) => navigator.geolocation.getCurrentPosition(() => resolve(true), () => resolve(false)));
+           }
+           return Promise.resolve(true);
+        },
+        showToast: (m) => { 
+          alert('App Message: ' + m);
+          console.log('Native Toast:', m); 
+        },
+        vibrate: (pattern = 200) => { 
+          if (window.navigator.vibrate) {
+            window.navigator.vibrate(pattern);
+            console.log('Vibrating pattern:', pattern);
+          } else {
+            console.log('Vibration not supported on this device');
+          }
+        },
+        getLocation: () => {
+          return new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(
+              (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+              (err) => reject(err)
+            );
+          });
+        }
       };
-      console.log('Mobile Preview Bridge Initialized');
+      console.log('Mobile Preview Bridge (Enhanced) Initialized');
     </script>
   `;
 
-  let entryHtml = projectFiles['index.html'] || '<body><div id="app"></div></body>';
+  let entryHtml = projectFiles['index.html'] || '<div id="app"></div>';
   
+  // Strip relative links/scripts as they won't resolve in srcDoc unless handled
   let processedHtml = entryHtml
     .replace(/<link[^>]+href=["'](?!\w+:\/\/)[^"']+["'][^>]*>/gi, '')
     .replace(/<script[^>]+src=["'](?!\w+:\/\/)[^"']+["'][^>]*><\/script>/gi, '');
@@ -29,23 +58,52 @@ export const buildFinalHtml = (projectFiles: Record<string, string>) => {
     .join('\n');
   
   const tailwindCdn = '<script src="https://cdn.tailwindcss.com"></script>';
+  
   const headInjection = `
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     ${tailwindCdn}
     <style>
       ${cssContent}
       ::-webkit-scrollbar { display: none; }
-      body { -ms-overflow-style: none; scrollbar-width: none; overflow-x: hidden; }
+      body { 
+        -ms-overflow-style: none; 
+        scrollbar-width: none; 
+        overflow-x: hidden; 
+        background-color: #09090b; 
+        color: #f4f4f5;
+        margin: 0;
+        min-height: 100vh;
+      }
     </style>
     ${polyfill}
   `;
 
-  if (processedHtml.includes('</head>')) {
-    processedHtml = processedHtml.replace('</head>', `${headInjection}</head>`);
-  } else {
-    processedHtml = headInjection + processedHtml;
+  const finalScript = `<script>\ndocument.addEventListener('DOMContentLoaded', () => {\n${jsContent}\n});\n</script>`;
+
+  // If it's just a fragment, wrap it in a full HTML boilerplate
+  if (!processedHtml.toLowerCase().includes('<html')) {
+    return `
+      <!DOCTYPE html>
+      <html lang="en">
+      <head>
+        ${headInjection}
+      </head>
+      <body>
+        ${processedHtml}
+        ${finalScript}
+      </body>
+      </html>
+    `;
   }
 
-  const finalScript = `<script>\n${jsContent}\n</script>`;
+  // If it is a full HTML, inject our head requirements and scripts
+  if (processedHtml.includes('</head>')) {
+    processedHtml = processedHtml.replace('</head>', `${headInjection}</head>`);
+  } else if (processedHtml.includes('<body')) {
+    processedHtml = processedHtml.replace('<body', `<head>${headInjection}</head><body`);
+  }
+
   if (processedHtml.includes('</body>')) {
     processedHtml = processedHtml.replace('</body>', `${finalScript}</body>`);
   } else {

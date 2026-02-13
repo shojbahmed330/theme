@@ -1,6 +1,6 @@
 
-import React, { useState, useEffect } from 'react';
-import { Smartphone, Sparkles, Loader2, Cpu } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Smartphone, Sparkles, Loader2, Cpu, QrCode, X, Copy, ExternalLink, SmartphoneNfc } from 'lucide-react';
 import { AppMode, ProjectConfig } from '../../types';
 import { buildFinalHtml } from '../../utils/previewBuilder';
 
@@ -11,14 +11,19 @@ interface MobilePreviewProps {
   mobileTab: 'chat' | 'preview';
   isGenerating?: boolean;
   projectConfig?: ProjectConfig;
+  projectId?: string | null;
 }
 
 const MobilePreview: React.FC<MobilePreviewProps> = ({ 
-  projectFiles, setMode, handleBuildAPK, mobileTab, isGenerating, projectConfig
+  projectFiles, setMode, handleBuildAPK, mobileTab, isGenerating, projectConfig, projectId
 }) => {
   const [showSplash, setShowSplash] = useState(false);
+  const [showQrModal, setShowQrModal] = useState(false);
+  const qrRef = useRef<HTMLDivElement>(null);
   const finalHtml = buildFinalHtml(projectFiles);
   const hasFiles = Object.keys(projectFiles).length > 0 && projectFiles['index.html'];
+
+  const previewUrl = projectId ? `${window.location.origin}/preview/${projectId}` : null;
 
   useEffect(() => {
     if (hasFiles && !isGenerating) {
@@ -28,8 +33,47 @@ const MobilePreview: React.FC<MobilePreviewProps> = ({
     }
   }, [hasFiles, isGenerating]);
 
+  // Fix: Access global QRCode from window object as it is loaded via CDN in index.html
+  useEffect(() => {
+    if (showQrModal && qrRef.current && previewUrl) {
+      qrRef.current.innerHTML = '';
+      const QRCodeLib = (window as any).QRCode;
+      if (QRCodeLib) {
+        new QRCodeLib(qrRef.current, {
+          text: previewUrl,
+          width: 200,
+          height: 200,
+          colorDark: "#ec4899",
+          colorLight: "#00000000",
+          correctLevel: QRCodeLib.CorrectLevel.H
+        });
+      }
+    }
+  }, [showQrModal, previewUrl]);
+
+  const copyLink = () => {
+    if (previewUrl) {
+      navigator.clipboard.writeText(previewUrl);
+      alert('Preview link copied!');
+    }
+  };
+
   return (
     <section className={`flex-1 flex flex-col items-center justify-center p-6 relative h-full ${mobileTab === 'chat' ? 'hidden lg:flex' : 'flex'}`}>
+      
+      {/* Live Preview Floating Button */}
+      {hasFiles && !isGenerating && projectId && (
+        <div className="absolute top-10 right-10 z-30 group">
+          <button 
+            onClick={() => setShowQrModal(true)}
+            className="flex items-center gap-3 px-5 py-3 bg-pink-600/10 hover:bg-pink-600 text-pink-500 hover:text-white rounded-2xl border border-pink-500/20 backdrop-blur-xl transition-all shadow-xl active:scale-95 group"
+          >
+            <QrCode size={18} className="group-hover:rotate-12 transition-transform"/>
+            <span className="text-[10px] font-black uppercase tracking-widest">Live Mobile Link</span>
+          </button>
+        </div>
+      )}
+
       <div className="relative z-10 w-full max-w-[280px] md:max-w-[340px] max-h-[70vh] md:h-[680px] aspect-[9/18.5] bg-black rounded-[3.5rem] border-[10px] border-[#18181b] shadow-2xl overflow-hidden flex flex-col ring-1 ring-white/5">
          <div className="h-7 w-full flex items-center justify-center relative bg-[#18181b] shrink-0">
             <div className="w-20 h-3 bg-black/40 rounded-b-xl shadow-sm"></div>
@@ -37,28 +81,33 @@ const MobilePreview: React.FC<MobilePreviewProps> = ({
          
          <div className="flex-1 w-full bg-[#09090b] relative overflow-hidden">
             {hasFiles ? (
-              <>
-                <iframe srcDoc={finalHtml} className="w-full h-full border-none" title="preview" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals" />
+              <div className="w-full h-full relative">
+                <iframe 
+                  srcDoc={finalHtml} 
+                  className="w-full h-full border-none bg-[#09090b]" 
+                  title="preview" 
+                  sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals" 
+                />
                 
                 {showSplash && (
                   <div className="absolute inset-0 bg-[#09090b] z-[200] flex flex-col items-center justify-center p-8 animate-in fade-in duration-300 fade-out slide-out-to-top-full fill-mode-forwards delay-1000">
                     {projectConfig?.splash && (
-                      <img src={projectConfig.splash} className="absolute inset-0 w-full h-full object-cover opacity-30" />
+                      <img src={projectConfig.splash} className="absolute inset-0 w-full h-full object-cover opacity-30" alt="splash" />
                     )}
                     <div className="relative z-10 flex flex-col items-center gap-6">
-                       <div className="w-20 h-20 rounded-3xl overflow-hidden shadow-2xl border-2 border-white/10 animate-in zoom-in duration-500">
+                       <div className="w-20 h-20 rounded-3xl overflow-hidden shadow-2xl border-2 border-white/10 flex items-center justify-center bg-black">
                           {projectConfig?.icon ? (
-                            <img src={projectConfig.icon} className="w-full h-full object-cover" />
+                            <img src={projectConfig.icon} className="w-full h-full object-cover" alt="icon" />
                           ) : (
                             <div className="w-full h-full bg-pink-500/10 flex items-center justify-center text-pink-500"><Sparkles size={32}/></div>
                           )}
                        </div>
-                       <h1 className="text-xl font-black text-white uppercase tracking-[0.3em]">{projectConfig?.appName || 'Studio App'}</h1>
+                       <h1 className="text-xl font-black text-white uppercase tracking-[0.3em] text-center">{projectConfig?.appName || 'Studio App'}</h1>
                        <div className="w-4 h-4 border-2 border-white/5 rounded-full animate-spin border-t-pink-500 mt-10"></div>
                     </div>
                   </div>
                 )}
-              </>
+              </div>
             ) : (
               <div className="w-full h-full flex flex-col items-center justify-center p-8 bg-black text-center space-y-6">
                  <div className="relative">
@@ -75,7 +124,7 @@ const MobilePreview: React.FC<MobilePreviewProps> = ({
             )}
 
             {isGenerating && (
-              <div className="absolute inset-0 bg-black/90 backdrop-blur-2xl z-[100] flex flex-col items-center justify-center text-center p-8 animate-in fade-in duration-500">
+              <div className="absolute inset-0 bg-black/95 backdrop-blur-2xl z-[300] flex flex-col items-center justify-center text-center p-8 animate-in fade-in duration-500">
                  <div className="absolute top-12 left-0 right-0 flex flex-col items-center gap-2">
                     <div className="flex items-center gap-2">
                        <Sparkles className="text-pink-500" size={18}/>
@@ -113,6 +162,58 @@ const MobilePreview: React.FC<MobilePreviewProps> = ({
             <div className="w-8 h-1 rounded-full bg-black/40"></div>
          </div>
       </div>
+
+      {/* QR Modal Overlay */}
+      {showQrModal && (
+        <div className="fixed inset-0 z-[500] flex items-center justify-center bg-black/90 backdrop-blur-xl p-6 animate-in fade-in duration-300">
+          <div className="max-w-md w-full glass-tech p-10 rounded-[3rem] border-pink-500/20 flex flex-col items-center text-center relative animate-in zoom-in duration-500">
+            <button 
+              onClick={() => setShowQrModal(false)}
+              className="absolute top-8 right-8 p-3 bg-white/5 hover:bg-white/10 rounded-2xl text-zinc-500 hover:text-white transition-all"
+            >
+              <X size={20}/>
+            </button>
+
+            <div className="mb-8">
+              <div className="w-16 h-16 bg-pink-500/10 rounded-[1.5rem] flex items-center justify-center mx-auto mb-4 border border-pink-500/20">
+                <SmartphoneNfc size={32} className="text-pink-500"/>
+              </div>
+              <h3 className="text-2xl font-black text-white uppercase tracking-tighter">Mobile <span className="text-pink-500">Uplink</span></h3>
+              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-600 mt-2">Test native features on your device</p>
+            </div>
+
+            <div className="p-4 bg-white rounded-3xl mb-8 shadow-[0_0_50px_rgba(236,72,153,0.2)]">
+               <div ref={qrRef} className="rounded-xl overflow-hidden"></div>
+            </div>
+
+            <div className="space-y-6 w-full">
+              <div className="bg-black/40 border border-white/5 p-4 rounded-2xl flex items-center justify-between gap-4">
+                <span className="text-[10px] font-mono text-zinc-500 truncate">{previewUrl}</span>
+                <button onClick={copyLink} className="p-2.5 bg-white/5 hover:bg-pink-600 rounded-xl transition-all"><Copy size={14}/></button>
+              </div>
+
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => window.open(previewUrl!, '_blank')}
+                  className="flex-1 py-4 bg-white/5 border border-white/10 hover:bg-white/10 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all flex items-center justify-center gap-2"
+                >
+                  <ExternalLink size={14}/> Open Web
+                </button>
+                <button 
+                  onClick={() => setShowQrModal(false)}
+                  className="flex-1 py-4 bg-pink-600 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all shadow-xl shadow-pink-600/20"
+                >
+                  Done
+                </button>
+              </div>
+
+              <p className="text-[9px] text-zinc-600 uppercase font-black leading-relaxed">
+                <span className="text-pink-500">Tip:</span> Scan with your phone's camera to access GPS, Camera, and Haptics directly in browser.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style>{`
         @keyframes loading-bar {

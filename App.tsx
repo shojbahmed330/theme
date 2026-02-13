@@ -1,8 +1,9 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Loader2, ArrowLeft } from 'lucide-react';
+import { Loader2, ArrowLeft, RefreshCw, Smartphone } from 'lucide-react';
 import { AppMode, Package, Transaction, Project } from './types.ts';
 import { DatabaseService } from './services/dbService.ts';
+import { buildFinalHtml } from './utils/previewBuilder.ts';
 
 // Layout & Hook Imports
 import { useAppAuth } from './hooks/useAppAuth.ts';
@@ -19,12 +20,15 @@ import ShopView from './shop/ShopView.tsx';
 import ProfileView from './profile/ProfileView.tsx';
 import DashboardView from './dashboard/DashboardView.tsx';
 import ProjectsView from './projects/ProjectsView.tsx';
+import GithubSettingsView from './settings/GithubSettingsView.tsx';
 
 const App: React.FC = () => {
   const [path, setPath] = useState(window.location.pathname);
   const [mode, setMode] = useState<AppMode>(AppMode.PREVIEW);
   const [showFailsafe, setShowFailsafe] = useState(false);
   const [mobileTab, setMobileTab] = useState<'chat' | 'preview'>('preview');
+  const [liveProject, setLiveProject] = useState<Project | null>(null);
+  const [liveLoading, setLiveLoading] = useState(false);
 
   const navigateTo = (newPath: string, newMode?: AppMode) => {
     try { if (window.location.pathname !== newPath) window.history.pushState({}, '', newPath); } catch (e) {}
@@ -38,8 +42,69 @@ const App: React.FC = () => {
     messages, input, setInput, isGenerating, projectFiles, setProjectFiles,
     selectedFile, setSelectedFile, githubConfig, setGithubConfig, buildStatus, setBuildStatus,
     buildSteps, setBuildSteps, isDownloading, handleSend, handleBuildAPK, handleSecureDownload,
-    selectedImage, setSelectedImage, handleImageSelect, projectConfig, setProjectConfig, loadProject
+    selectedImage, setSelectedImage, handleImageSelect, projectConfig, setProjectConfig, loadProject,
+    currentProjectId
   } = useAppLogic(user, setUser);
+
+  const db = DatabaseService.getInstance();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handlePopState = () => setPath(window.location.pathname);
+    window.addEventListener('popstate', handlePopState);
+    
+    // Check if we are in live preview mode
+    if (path.startsWith('/preview/')) {
+      const id = path.split('/').pop();
+      if (id) {
+        setLiveLoading(true);
+        db.supabase.from('projects').select('*').eq('id', id).maybeSingle().then(({ data }) => {
+          if (data) setLiveProject(data);
+          setLiveLoading(false);
+        });
+      }
+    }
+
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [path]);
+
+  // LIVE PREVIEW UI (Public)
+  if (path.startsWith('/preview/') && (liveProject || liveLoading)) {
+    return (
+      <div className="h-[100dvh] w-full bg-[#09090b] flex flex-col">
+        {liveLoading ? (
+          <div className="flex-1 flex flex-col items-center justify-center gap-6">
+            <Loader2 className="animate-spin text-pink-500" size={40}/>
+            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-600">Initializing Uplink...</p>
+          </div>
+        ) : liveProject ? (
+          <div className="flex-1 w-full relative h-full">
+            <iframe 
+              srcDoc={buildFinalHtml(liveProject.files)} 
+              className="w-full h-full border-none"
+              title="live-preview"
+              sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals"
+            />
+            {/* Control Overlay */}
+            <div className="fixed bottom-10 right-10 flex flex-col gap-4">
+               <button onClick={() => window.location.reload()} className="p-4 bg-pink-600 text-white rounded-2xl shadow-2xl active:scale-90 transition-all">
+                 <RefreshCw size={20}/>
+               </button>
+               <button onClick={() => navigateTo('/login')} className="p-4 bg-white/10 backdrop-blur-xl border border-white/10 text-white rounded-2xl shadow-2xl active:scale-90 transition-all">
+                 <Smartphone size={20}/>
+               </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex-1 flex flex-col items-center justify-center gap-4 p-10 text-center">
+            <h1 className="text-2xl font-black text-white uppercase">Project Offline</h1>
+            <p className="text-zinc-600 text-xs uppercase font-bold">The developer has not authorized this uplink or it has been terminated.</p>
+            <button onClick={() => navigateTo('/login')} className="mt-6 px-10 py-4 bg-pink-600 rounded-2xl font-black uppercase text-[10px]">Return to Terminal</button>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   const [packages, setPackages] = useState<Package[]>([]);
   const [userTransactions, setUserTransactions] = useState<Transaction[]>([]);
@@ -52,27 +117,14 @@ const App: React.FC = () => {
   const [newPass, setNewPass] = useState('');
   const [isUpdatingPass, setIsUpdatingPass] = useState(false);
 
-  const db = DatabaseService.getInstance();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
   useEffect(() => {
-    const handlePopState = () => setPath(window.location.pathname);
-    window.addEventListener('popstate', handlePopState);
-    const failsafeShowTimer = setTimeout(() => setShowFailsafe(true), 4000);
-    
     db.getPackages().then(setPackages);
     if (user) db.getUserTransactions(user.id).then(setUserTransactions);
-
-    return () => {
-      window.removeEventListener('popstate', handlePopState);
-      clearTimeout(failsafeShowTimer);
-    };
   }, [user]);
 
   const handleSaveGithubConfig = async (config: any) => {
     setGithubConfig(config);
     if (user) await db.updateGithubConfig(user.id, config);
-    alert("GitHub Configuration Synced!");
   };
 
   const handlePaymentScreenshotUpload = () => {
@@ -172,7 +224,13 @@ const App: React.FC = () => {
       <main className="flex-1 flex overflow-hidden relative">
         <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={onScreenshotFileChange} />
         
-        {path === '/shop' ? (
+        {mode === AppMode.SETTINGS ? (
+          <GithubSettingsView 
+            config={githubConfig}
+            onSave={handleSaveGithubConfig}
+            onBack={() => setMode(AppMode.PREVIEW)}
+          />
+        ) : path === '/shop' ? (
           <ShopView 
             packages={packages} paymentStep={paymentStep} setPaymentStep={setPaymentStep}
             selectedPkg={selectedPkg} setSelectedPkg={setSelectedPkg} paymentMethod={paymentMethod}
@@ -204,11 +262,12 @@ const App: React.FC = () => {
             isGenerating={isGenerating} projectFiles={projectFiles} setProjectFiles={setProjectFiles}
             selectedFile={selectedFile} setSelectedFile={setSelectedFile} buildStatus={buildStatus}
             setBuildStatus={setBuildStatus} buildSteps={buildSteps} mobileTab={mobileTab} setMobileTab={setMobileTab}
-            handleSend={handleSend} handleBuildAPK={() => handleBuildAPK(() => navigateTo('/profile', AppMode.PROFILE))} 
+            handleSend={handleSend} handleBuildAPK={() => handleBuildAPK(() => navigateTo('/dashboard', AppMode.SETTINGS))} 
             handleSecureDownload={handleSecureDownload} isDownloading={isDownloading}
             selectedImage={selectedImage} setSelectedImage={setSelectedImage}
             handleImageSelect={handleImageSelect}
             projectConfig={projectConfig} setProjectConfig={setProjectConfig}
+            projectId={currentProjectId}
           />
         )}
       </main>

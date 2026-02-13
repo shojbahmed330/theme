@@ -7,7 +7,8 @@ export enum AppMode {
   PROFILE = 'PROFILE',
   SETTINGS = 'SETTINGS',
   ADMIN = 'ADMIN',
-  PROJECTS = 'PROJECTS'
+  PROJECTS = 'PROJECTS',
+  LIVE_PREVIEW = 'LIVE_PREVIEW'
 }
 
 export interface ProjectConfig {
@@ -93,7 +94,6 @@ export interface ActivityLog {
   created_at: string;
 }
 
-// Added missing GithubConfig interface export
 export interface GithubConfig {
   token: string;
   owner: string;

@@ -35,6 +35,7 @@ interface DashboardViewProps {
   handleImageSelect: (file: File) => void;
   projectConfig: ProjectConfig;
   setProjectConfig: (config: ProjectConfig) => void;
+  projectId?: string | null;
 }
 
 const DashboardView: React.FC<DashboardViewProps> = (props) => {
@@ -53,6 +54,7 @@ const DashboardView: React.FC<DashboardViewProps> = (props) => {
             handleBuildAPK={props.handleBuildAPK} mobileTab={props.mobileTab}
             isGenerating={props.isGenerating}
             projectConfig={props.projectConfig}
+            projectId={props.projectId}
           />
         </div>
 

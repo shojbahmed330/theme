@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Sparkles, Crown } from 'lucide-react';
+import { Sparkles, Crown, Settings } from 'lucide-react';
 import { AppMode, User } from '../types';
 
 interface HeaderProps {
@@ -54,6 +54,13 @@ const Header: React.FC<HeaderProps> = ({ user, path, mode, navigateTo }) => {
       </nav>
       
       <div className="flex items-center gap-4">
+        <button 
+          onClick={() => navigateTo('/dashboard', AppMode.SETTINGS)}
+          className={`p-2.5 rounded-xl border border-white/5 transition-all ${mode === AppMode.SETTINGS ? 'bg-pink-600 text-white' : 'bg-black/40 text-zinc-500 hover:text-white'}`}
+          title="GitHub Settings"
+        >
+          <Settings size={20} />
+        </button>
         <div className="px-5 py-2.5 bg-black/40 border border-white/5 rounded-2xl text-[11px] font-black text-pink-500 shadow-sm uppercase tracking-widest flex items-center gap-2">
           <div className="w-1.5 h-1.5 rounded-full bg-pink-500 shadow-[0_0_8px_#ec4899]"></div>
           {user.tokens} Tokens
