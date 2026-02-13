@@ -122,6 +122,45 @@ jobs:
     }
   }
 
+  async createRepo(token: string, repoName: string): Promise<string> {
+    const headers = {
+      'Authorization': `token ${token}`,
+      'Accept': 'application/vnd.github.v3+json'
+    };
+
+    // First, check if the repo already exists
+    // We need the username first
+    const userRes = await fetch('https://api.github.com/user', { headers });
+    if (!userRes.ok) throw new Error("GitHub Authentication failed.");
+    const userData = await userRes.json();
+    const username = userData.login;
+
+    const checkRes = await fetch(`https://api.github.com/repos/${username}/${repoName}`, { headers });
+    if (checkRes.ok) {
+        return username; // Already exists
+    }
+
+    // Create repo
+    const createRes = await fetch('https://api.github.com/user/repos', {
+      method: 'POST',
+      headers: { ...headers, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: repoName,
+        private: false,
+        description: 'Auto-generated repository for Android build via OneClick Studio',
+        auto_init: true
+      })
+    });
+
+    if (!createRes.ok) {
+        const errData = await createRes.json();
+        if (createRes.status === 422) return username; // Likely already exists
+        throw new Error(`Failed to create repository: ${errData.message}`);
+    }
+
+    return username;
+  }
+
   async pushToGithub(config: GithubConfig, files: Record<string, string>, appConfig?: ProjectConfig) {
     const token = config.token.trim();
     const owner = config.owner.trim();
@@ -135,9 +174,6 @@ jobs:
       'Accept': 'application/vnd.github.v3+json',
       'X-GitHub-Api-Version': '2022-11-28'
     };
-
-    const repoCheck = await fetch(baseUrl, { headers });
-    if (!repoCheck.ok) throw new Error("গিটহাব কানেকশন এরর।");
 
     // Construct capacitor.config.json
     const capConfig = {
@@ -174,7 +210,7 @@ jobs:
         sha = getData.sha;
       }
 
-      await fetch(`${baseUrl}/contents/${path}`, {
+      const putRes = await fetch(`${baseUrl}/contents/${path}`, {
         method: 'PUT',
         headers: { ...headers, 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -183,6 +219,10 @@ jobs:
           sha: sha
         })
       });
+
+      if (!putRes.ok) {
+          console.warn(`Could not update ${path}: ${putRes.statusText}`);
+      }
     }
   }
 

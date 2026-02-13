@@ -117,21 +117,52 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
   };
 
   const handleBuildAPK = async (navigateToProfile: () => void) => {
-    if (!githubConfig.token || !githubConfig.repo || !githubConfig.owner) { 
+    if (!githubConfig.token) { 
       navigateToProfile(); 
       return; 
     }
+
     setBuildSteps([]);
-    setBuildStatus({ status: 'pushing', message: 'Syncing project...' });
+    setBuildStatus({ status: 'pushing', message: 'Initializing Cloud Repository...' });
+    
     try {
-      await github.current.pushToGithub(githubConfig, projectFiles, projectConfig);
+      // 1. Auto-generate Repo Name from App Name
+      const sanitizedName = (projectConfig.appName || 'OneClickApp')
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
+        
+      const finalRepoName = `${sanitizedName}-studio`;
+
+      // 2. Create Repository Automatically
+      const owner = await github.current.createRepo(githubConfig.token, finalRepoName);
+      
+      const updatedConfig = { 
+        ...githubConfig, 
+        owner: owner, 
+        repo: finalRepoName 
+      };
+      
+      setGithubConfig(updatedConfig);
+      
+      // Update DB with the new dynamic config
+      if (user) {
+          await db.updateGithubConfig(user.id, updatedConfig);
+      }
+
+      // 3. Push Code
+      setBuildStatus({ status: 'pushing', message: 'Syncing source code...' });
+      await github.current.pushToGithub(updatedConfig, projectFiles, projectConfig);
+      
+      // 4. Start Build Loop
       setBuildStatus({ status: 'building', message: 'Compiling Android Binary...' });
       const checkInterval = setInterval(async () => {
-        const runDetails = await github.current.getRunDetails(githubConfig);
+        const runDetails = await github.current.getRunDetails(updatedConfig);
         if (runDetails?.jobs?.[0]?.steps) setBuildSteps(runDetails.jobs[0].steps);
         if (runDetails?.jobs?.[0]?.status === 'completed') {
           clearInterval(checkInterval);
-          const details = await github.current.getLatestApk(githubConfig);
+          const details = await github.current.getLatestApk(updatedConfig);
           if (details) setBuildStatus({ status: 'success', message: 'Done!', apkUrl: details.downloadUrl, webUrl: details.webUrl });
           else setBuildStatus({ status: 'error', message: 'Build completed but artifact not found.' });
         } else if (runDetails?.jobs?.[0]?.conclusion === 'failure') {
