@@ -22,13 +22,11 @@ const BuildStatusDisplay: React.FC<BuildStatusDisplayProps> = ({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    let interval: any;
+    let timer: any;
+    let attempts = 0;
     
     if (status === 'success' && webUrl) {
-      setQrGenerated(false);
-      setError(null);
-
-      const generateQR = () => {
+      const tryGenerate = () => {
         const QRCodeLib = (window as any).QRCode;
         const container = qrRef.current;
 
@@ -36,7 +34,14 @@ const BuildStatusDisplay: React.FC<BuildStatusDisplayProps> = ({
           try {
             container.innerHTML = ''; // Clear previous content
             
-            new QRCodeLib(container, {
+            // Create a wrapper for the actual QR code to ensure it's centered and clean
+            const qrWrapper = document.createElement('div');
+            qrWrapper.style.padding = '10px';
+            qrWrapper.style.background = '#ffffff';
+            qrWrapper.style.borderRadius = '12px';
+            container.appendChild(qrWrapper);
+
+            new QRCodeLib(qrWrapper, {
               text: webUrl,
               width: 160,
               height: 160,
@@ -45,36 +50,36 @@ const BuildStatusDisplay: React.FC<BuildStatusDisplayProps> = ({
               correctLevel: QRCodeLib.CorrectLevel.H
             });
             
-            // The library adds an image or canvas. Check if something was added.
-            if (container.children.length > 0) {
-              setQrGenerated(true);
-              return true;
-            }
+            // Give it a moment to render
+            setTimeout(() => {
+              if (qrWrapper.children.length > 0) {
+                setQrGenerated(true);
+                setError(null);
+              }
+            }, 100);
+            return true;
           } catch (err) {
-            console.error("QR Error:", err);
-            setError("QR Generation Failed");
+            console.error("QR Generation Error:", err);
+            return false;
           }
         }
         return false;
       };
 
-      // Try immediately
-      if (!generateQR()) {
-        let attempts = 0;
-        interval = setInterval(() => {
-          attempts++;
-          if (generateQR() || attempts > 20) {
-            clearInterval(interval);
-            if (attempts > 20 && !qrGenerated) {
-                setError("Could not load QR library");
-            }
+      // Initial attempt with a small delay for DOM stability
+      timer = setInterval(() => {
+        attempts++;
+        if (tryGenerate() || attempts > 20) {
+          clearInterval(timer);
+          if (attempts > 20 && !qrGenerated) {
+            setError("QR Engine timeout. Refresh required.");
           }
-        }, 500);
-      }
+        }
+      }, 500);
     }
 
     return () => {
-      if (interval) clearInterval(interval);
+      if (timer) clearInterval(timer);
     };
   }, [status, webUrl]);
 
@@ -93,27 +98,26 @@ const BuildStatusDisplay: React.FC<BuildStatusDisplayProps> = ({
             </div>
 
             <div className="flex flex-col md:flex-row items-center justify-center gap-10 py-6">
-              {/* Enhanced QR Code Section */}
+              {/* QR Code Section */}
               <div className="flex flex-col items-center gap-4">
-                <div className="relative p-5 bg-white rounded-[2.5rem] shadow-[0_0_50px_rgba(236,72,153,0.3)] group transition-transform hover:scale-105 border-4 border-pink-500/20 flex items-center justify-center w-[200px] h-[200px]">
+                <div className="relative p-2 bg-white rounded-[2rem] shadow-[0_0_50px_rgba(236,72,153,0.3)] border-4 border-pink-500/20 w-[200px] h-[200px] flex items-center justify-center">
                   <div 
                     ref={qrRef} 
-                    id="qrcode-container"
-                    className={`rounded-xl overflow-hidden bg-white flex items-center justify-center ${!qrGenerated ? 'opacity-0' : 'opacity-100'}`}
+                    className={`transition-opacity duration-500 ${qrGenerated ? 'opacity-100' : 'opacity-0'}`}
                   >
                   </div>
                   
                   {!qrGenerated && !error && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-white rounded-[2.2rem]">
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-white rounded-[1.8rem]">
                       <Loader2 className="animate-spin text-pink-500" size={24}/>
                       <span className="text-[8px] font-bold text-zinc-400 uppercase tracking-widest">Generating QR...</span>
                     </div>
                   )}
 
                   {error && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-white rounded-[2.2rem] p-4">
-                       <Link2 className="text-pink-500" size={24}/>
-                       <span className="text-[8px] font-bold text-red-500 uppercase text-center">{error}</span>
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-white rounded-[1.8rem] p-4 text-center">
+                       <Link2 className="text-red-500" size={24}/>
+                       <span className="text-[9px] font-black text-red-500 uppercase leading-tight">{error}</span>
                     </div>
                   )}
                 </div>
