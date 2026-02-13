@@ -1,5 +1,5 @@
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState } from 'react';
 import { CheckCircle2, Smartphone, Download, ArrowLeft, Loader2, SmartphoneNfc, ExternalLink, Link2 } from 'lucide-react';
 import BuildConsole from './BuildConsole';
 import { BuildStep } from '../../types';
@@ -17,71 +17,12 @@ interface BuildStatusDisplayProps {
 const BuildStatusDisplay: React.FC<BuildStatusDisplayProps> = ({
   status, message, apkUrl, webUrl, buildSteps, handleSecureDownload, resetBuild
 }) => {
-  const qrRef = useRef<HTMLDivElement>(null);
-  const [qrGenerated, setQrGenerated] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [qrLoaded, setQrLoaded] = useState(false);
 
-  useEffect(() => {
-    let timer: any;
-    let attempts = 0;
-    
-    if (status === 'success' && webUrl) {
-      const tryGenerate = () => {
-        const QRCodeLib = (window as any).QRCode;
-        const container = qrRef.current;
-
-        if (QRCodeLib && container) {
-          try {
-            container.innerHTML = ''; // Clear previous content
-            
-            // Create a wrapper for the actual QR code to ensure it's centered and clean
-            const qrWrapper = document.createElement('div');
-            qrWrapper.style.padding = '10px';
-            qrWrapper.style.background = '#ffffff';
-            qrWrapper.style.borderRadius = '12px';
-            container.appendChild(qrWrapper);
-
-            new QRCodeLib(qrWrapper, {
-              text: webUrl,
-              width: 160,
-              height: 160,
-              colorDark: "#000000",
-              colorLight: "#ffffff",
-              correctLevel: QRCodeLib.CorrectLevel.H
-            });
-            
-            // Give it a moment to render
-            setTimeout(() => {
-              if (qrWrapper.children.length > 0) {
-                setQrGenerated(true);
-                setError(null);
-              }
-            }, 100);
-            return true;
-          } catch (err) {
-            console.error("QR Generation Error:", err);
-            return false;
-          }
-        }
-        return false;
-      };
-
-      // Initial attempt with a small delay for DOM stability
-      timer = setInterval(() => {
-        attempts++;
-        if (tryGenerate() || attempts > 20) {
-          clearInterval(timer);
-          if (attempts > 20 && !qrGenerated) {
-            setError("QR Engine timeout. Refresh required.");
-          }
-        }
-      }, 500);
-    }
-
-    return () => {
-      if (timer) clearInterval(timer);
-    };
-  }, [status, webUrl]);
+  // High-reliability QR API URL
+  const qrCodeUrl = webUrl 
+    ? `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(webUrl)}&color=000&bgcolor=fff&ecc=H`
+    : null;
 
   return (
     <div className="flex-1 flex flex-col items-center justify-center p-6 md:p-10 overflow-y-auto bg-[#09090b]">
@@ -98,26 +39,22 @@ const BuildStatusDisplay: React.FC<BuildStatusDisplayProps> = ({
             </div>
 
             <div className="flex flex-col md:flex-row items-center justify-center gap-10 py-6">
-              {/* QR Code Section */}
+              {/* QR Code Section - Now using highly reliable API */}
               <div className="flex flex-col items-center gap-4">
-                <div className="relative p-2 bg-white rounded-[2rem] shadow-[0_0_50px_rgba(236,72,153,0.3)] border-4 border-pink-500/20 w-[200px] h-[200px] flex items-center justify-center">
-                  <div 
-                    ref={qrRef} 
-                    className={`transition-opacity duration-500 ${qrGenerated ? 'opacity-100' : 'opacity-0'}`}
-                  >
-                  </div>
+                <div className="relative p-4 bg-white rounded-[2rem] shadow-[0_0_50px_rgba(236,72,153,0.3)] border-4 border-pink-500/20 w-[200px] h-[200px] flex items-center justify-center overflow-hidden">
+                  {qrCodeUrl && (
+                    <img 
+                      src={qrCodeUrl} 
+                      alt="Build Artifact QR"
+                      className={`w-full h-full object-contain transition-opacity duration-700 ${qrLoaded ? 'opacity-100' : 'opacity-0'}`}
+                      onLoad={() => setQrLoaded(true)}
+                    />
+                  )}
                   
-                  {!qrGenerated && !error && (
+                  {!qrLoaded && (
                     <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-white rounded-[1.8rem]">
                       <Loader2 className="animate-spin text-pink-500" size={24}/>
-                      <span className="text-[8px] font-bold text-zinc-400 uppercase tracking-widest">Generating QR...</span>
-                    </div>
-                  )}
-
-                  {error && (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 bg-white rounded-[1.8rem] p-4 text-center">
-                       <Link2 className="text-red-500" size={24}/>
-                       <span className="text-[9px] font-black text-red-500 uppercase leading-tight">{error}</span>
+                      <span className="text-[8px] font-bold text-zinc-400 uppercase tracking-widest text-center px-4">Establishing Secure Link...</span>
                     </div>
                   )}
                 </div>
