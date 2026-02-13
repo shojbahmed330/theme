@@ -61,27 +61,52 @@ export const buildFinalHtml = (projectFiles: Record<string, string>) => {
   
   const headInjection = `
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     ${tailwindCdn}
     <style>
-      ${cssContent}
-      ::-webkit-scrollbar { display: none; }
+      /* Mobile App Reset */
+      * { 
+        box-sizing: border-box; 
+        -webkit-tap-highlight-color: transparent;
+      }
+      
+      html, body {
+        height: 100%;
+        width: 100%;
+        margin: 0;
+        padding: 0;
+        overflow: hidden; /* Prevent body scroll to keep it app-like */
+      }
+
       body { 
         -ms-overflow-style: none; 
         scrollbar-width: none; 
-        overflow-x: hidden; 
         background-color: #09090b; 
         color: #f4f4f5;
-        margin: 0;
-        min-height: 100vh;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        display: flex;
+        flex-direction: column;
       }
+
+      /* Container for scrolling content if needed */
+      #root, #app, .app-container {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        overflow-y: auto;
+        overflow-x: hidden;
+      }
+
+      ::-webkit-scrollbar { display: none; }
+      
+      ${cssContent}
     </style>
     ${polyfill}
   `;
 
-  const finalScript = `<script>\ndocument.addEventListener('DOMContentLoaded', () => {\n${jsContent}\n});\n</script>`;
+  const finalScript = `<script>\n${jsContent}\n</script>`;
 
-  // If it's just a fragment, wrap it in a full HTML boilerplate
   if (!processedHtml.toLowerCase().includes('<html')) {
     return `
       <!DOCTYPE html>
@@ -90,14 +115,15 @@ export const buildFinalHtml = (projectFiles: Record<string, string>) => {
         ${headInjection}
       </head>
       <body>
-        ${processedHtml}
+        <div id="app-root" style="height: 100%; display: flex; flex-direction: column;">
+          ${processedHtml}
+        </div>
         ${finalScript}
       </body>
       </html>
     `;
   }
 
-  // If it is a full HTML, inject our head requirements and scripts
   if (processedHtml.includes('</head>')) {
     processedHtml = processedHtml.replace('</head>', `${headInjection}</head>`);
   } else if (processedHtml.includes('<body')) {

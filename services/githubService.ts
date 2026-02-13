@@ -29,36 +29,39 @@ jobs:
 
       - name: Initialize Capacitor and Build APK
         run: |
-          # 1. Setup directories
-          rm -rf www android capacitor.config.json
+          # 1. Setup directories (CRITICAL: Do not delete capacitor.config.json)
+          rm -rf www android
           mkdir -p www
           mkdir -p assets
           
-          # 2. Sync web assets
+          # 2. Ensure capacitor.config.json exists (Fallback if push failed)
+          if [ ! -f capacitor.config.json ]; then
+            echo '{"appId": "com.oneclick.studio", "appName": "OneClickApp", "webDir": "www", "bundledWebRuntime": false}' > capacitor.config.json
+          fi
+          
+          # 3. Sync web assets
           find . -maxdepth 3 -type f \
             -not -path '*/.*' \
             -not -name "package*" \
             -not -name "tsconfig*" \
             -not -name "vite.config.ts" \
+            -not -name "capacitor.config.json" \
             -not -path "./android/*" \
             -not -path "./node_modules/*" \
-            -exec cp --parents {} www/ \;
+            -exec cp --parents "{}" www/ ';'
           
-          # 3. Setup Project
+          # 4. Setup Project
           if [ ! -f package.json ]; then
             npm init -y
           fi
           
-          # 4. Install Dependencies
+          # 5. Install Dependencies
           npm install @capacitor/core@latest @capacitor/cli@latest @capacitor/android@latest @capacitor/assets@latest
           
-          # 5. Asset Generation (If images exist)
-          if [ -d "assets" ]; then
-            npx capacitor-assets generate --android
+          # 6. Asset Generation (If images exist)
+          if [ -d "assets" ] && [ "$(ls -A assets)" ]; then
+            npx capacitor-assets generate --android || true
           fi
-          
-          # 6. Capacitor Init (Config already pushed)
-          # npx cap init "OneClickApp" "com.oneclick.studio" --web-dir www # Handled by pre-pushed config
           
           # 7. Add Android Platform
           npx cap add android
@@ -154,7 +157,7 @@ jobs:
     if (appConfig?.icon) {
       allFiles['assets/icon-only.png'] = appConfig.icon;
       allFiles['assets/icon-foreground.png'] = appConfig.icon;
-      allFiles['assets/icon-background.png'] = '#FFFFFF'; // Default
+      allFiles['assets/icon-background.png'] = '#FFFFFF'; 
     }
     if (appConfig?.splash) {
       allFiles['assets/splash.png'] = appConfig.splash;
