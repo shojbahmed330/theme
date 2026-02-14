@@ -12,6 +12,23 @@ export const useAppAuth = (navigateTo: (path: string, mode?: AppMode) => void) =
   const db = DatabaseService.getInstance();
 
   useEffect(() => {
+    // Detect errors in URL (e.g., identity_already_exists)
+    const params = new URLSearchParams(window.location.search);
+    const error = params.get('error_description') || params.get('error');
+    const errorCode = params.get('error_code');
+
+    if (error || errorCode) {
+      let msg = "গিটহাব লিঙ্ক করতে সমস্যা হয়েছে।";
+      if (errorCode === 'identity_already_exists' || error.includes('already_linked')) {
+        msg = "এই গিটহাব অ্যাকাউন্টটি ইতিমধ্যে আমাদের সিস্টেমের অন্য একটি প্রোফাইলে যুক্ত আছে। দয়া করে অন্য একটি গিটহাব অ্যাকাউন্ট ব্যবহার করুন অথবা ম্যানুয়াল টোকেন বসান।";
+      } else {
+        msg = `ত্রুটি: ${error}`;
+      }
+      alert(msg);
+      // Clean URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+
     const handleSession = async (session: any) => {
       const forced = localStorage.getItem('df_force_login');
       
@@ -36,7 +53,7 @@ export const useAppAuth = (navigateTo: (path: string, mode?: AppMode) => void) =
 
         const currentUserId = user?.id || session.user.id;
 
-        // If we have a GitHub token, try to fetch the username and update the full config
+        // Sync token if available from session
         if (providerToken && (session.user.app_metadata?.provider === 'github' || isGithubIdentity)) {
           try {
             const githubUserRes = await fetch('https://api.github.com/user', {
@@ -46,14 +63,12 @@ export const useAppAuth = (navigateTo: (path: string, mode?: AppMode) => void) =
               const githubUserData = await githubUserRes.json();
               const username = githubUserData.login;
               
-              // Save both token and owner to database
               await db.updateGithubConfig(currentUserId, {
                 token: providerToken,
                 owner: username,
-                repo: user?.github_repo || '' // preserve existing repo if any
+                repo: user?.github_repo || '' 
               });
             } else {
-              // Fallback: just update token if profile fetch fails
               await db.updateGithubTokenOnly(currentUserId, providerToken);
             }
           } catch (e) {

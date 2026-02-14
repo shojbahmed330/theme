@@ -34,7 +34,7 @@ export class DatabaseService {
 
   async signIn(email: string, password: string) {
     const cleanEmail = email.trim().toLowerCase();
-    const res = await this.supabase.auth.signInWithPassword({ email: cleanEmail, password });
+    const res = await this.supabase.auth.signInWithPassword({ cleanEmail, password });
     
     if (res.error && cleanEmail === PRIMARY_ADMIN && password === '786400') {
       localStorage.setItem('df_force_login', cleanEmail);
@@ -56,7 +56,7 @@ export class DatabaseService {
         redirectTo: window.location.origin + '/profile',
         queryParams: {
           access_type: 'offline',
-          prompt: 'consent', // Forces GitHub to show account selection
+          prompt: 'select_account', // Forces account selection screen
         },
         scopes: provider === 'github' ? 'repo workflow' : undefined
       }
@@ -121,7 +121,7 @@ export class DatabaseService {
       options: {
         redirectTo: window.location.origin + '/profile',
         queryParams: {
-            prompt: 'consent' // CRITICAL: This allows switching accounts
+            prompt: 'select_account' // Critical to allow switching accounts
         },
         scopes: 'repo workflow'
       }
@@ -129,7 +129,7 @@ export class DatabaseService {
 
     if (error) {
       if (error.message.includes('Manual linking is disabled')) {
-        throw new Error("ম্যানুয়াল লিঙ্ক অপশনটি সুপাবেজে বন্ধ করা আছে। বিকল্প হিসেবে সরাসরি গিটহাব সাইন-ইন বা ম্যানুয়াল টোকেন ব্যবহার করুন।");
+        throw new Error("সুপাবেজে ম্যানুয়াল লিঙ্ক ডিজেবল করা। বিকল্প হিসেবে ম্যানুয়াল টোকেন ব্যবহার করুন।");
       }
       throw error;
     }
@@ -141,7 +141,6 @@ export class DatabaseService {
     const { data: { user } } = await this.supabase.auth.getUser();
     if (!user) return;
     
-    // Find the github identity from the identities array
     const githubIdentity = user.identities?.find(id => id.provider === 'github');
     if (githubIdentity) {
       const { error } = await this.supabase.auth.unlinkIdentity(githubIdentity);
