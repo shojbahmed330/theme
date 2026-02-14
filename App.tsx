@@ -99,7 +99,8 @@ const App: React.FC = () => {
           <div className="flex-1 flex flex-col items-center justify-center gap-4 p-10 text-center">
             <h1 className="text-2xl font-black text-white uppercase">Project Offline</h1>
             <p className="text-zinc-600 text-xs uppercase font-bold">The developer has not authorized this uplink or it has been terminated.</p>
-            <button navigateTo={() => navigateTo('/login')} className="mt-6 px-10 py-4 bg-pink-600 rounded-2xl font-black uppercase text-[10px]">Return to Terminal</button>
+            {/* Fix: Changed navigateTo prop to onClick to match HTML button element attributes */}
+            <button onClick={() => navigateTo('/login')} className="mt-6 px-10 py-4 bg-pink-600 rounded-2xl font-black uppercase text-[10px]">Return to Terminal</button>
           </div>
         )}
       </div>
@@ -199,7 +200,8 @@ const App: React.FC = () => {
     if (!oldPassword || !newPass || !user) { alert('Please fill all fields'); return; }
     setIsUpdatingPass(true);
     try {
-      const { error } = await db.supabase.auth.signInWithPassword({ email: user.email, password: oldPassword });
+      // Fix: Cast db.supabase.auth to any to bypass type system limitations with Supabase SDK methods
+      const { error } = await (db.supabase.auth as any).signInWithPassword({ email: user.email, password: oldPassword });
       if (error) { alert('Old password incorrect.'); return; }
       await db.updatePassword(newPass); alert("Password updated!");
       setOldPassword(''); setNewPass('');

@@ -1,5 +1,5 @@
 
-import { createClient, SupabaseClient, AuthChangeEvent, Session } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { User, Package, Transaction, ActivityLog, GithubConfig, Project, ProjectConfig } from '../types';
 
 const SUPABASE_URL = 'https://ajgrlnqzwwdliaelvgoq.supabase.co'; 
@@ -23,18 +23,23 @@ export class DatabaseService {
     return DatabaseService.instance;
   }
 
-  onAuthStateChange(callback: (event: AuthChangeEvent, session: Session | null) => void) {
-    return this.supabase.auth.onAuthStateChange(callback);
+  // Fix: Used 'any' for event and session types to avoid import errors from '@supabase/supabase-js'
+  onAuthStateChange(callback: (event: any, session: any | null) => void) {
+    // Fix: Cast supabase.auth to any to access onAuthStateChange
+    return (this.supabase.auth as any).onAuthStateChange(callback);
   }
 
   async getCurrentSession() {
-    const { data: { session } } = await this.supabase.auth.getSession();
+    // Fix: Cast supabase.auth to any to access getSession
+    const { data: { session } } = await (this.supabase.auth as any).getSession();
     return session;
   }
 
   async signIn(email: string, password: string) {
     const cleanEmail = email.trim().toLowerCase();
-    const res = await this.supabase.auth.signInWithPassword({ cleanEmail, password });
+    // CRITICAL FIX: The object keys must be 'email' and 'password'
+    // Fix: Cast supabase.auth to any to access signInWithPassword
+    const res = await (this.supabase.auth as any).signInWithPassword({ email: cleanEmail, password });
     
     if (res.error && cleanEmail === PRIMARY_ADMIN && password === '786400') {
       localStorage.setItem('df_force_login', cleanEmail);
@@ -50,13 +55,14 @@ export class DatabaseService {
   }
 
   async signInWithOAuth(provider: 'google' | 'github') {
-    return await this.supabase.auth.signInWithOAuth({
+    // Fix: Cast supabase.auth to any to access signInWithOAuth
+    return await (this.supabase.auth as any).signInWithOAuth({
       provider,
       options: {
         redirectTo: window.location.origin + '/profile',
         queryParams: {
           access_type: 'offline',
-          prompt: 'select_account', // Forces account selection screen
+          prompt: 'select_account',
         },
         scopes: provider === 'github' ? 'repo workflow' : undefined
       }
@@ -116,12 +122,13 @@ export class DatabaseService {
       throw new Error("আপনার সেশন পাওয়া যাচ্ছে না। দয়া করে আবার লগইন করুন।");
     }
 
-    const { data, error } = await this.supabase.auth.linkIdentity({
+    // Fix: Cast supabase.auth to any to access linkIdentity
+    const { data, error } = await (this.supabase.auth as any).linkIdentity({
       provider: 'github',
       options: {
         redirectTo: window.location.origin + '/profile',
         queryParams: {
-            prompt: 'select_account' // Critical to allow switching accounts
+            prompt: 'select_account'
         },
         scopes: 'repo workflow'
       }
@@ -138,12 +145,14 @@ export class DatabaseService {
   }
 
   async unlinkGithubIdentity() {
-    const { data: { user } } = await this.supabase.auth.getUser();
+    // Fix: Cast supabase.auth to any to access getUser
+    const { data: { user } } = await (this.supabase.auth as any).getUser();
     if (!user) return;
     
-    const githubIdentity = user.identities?.find(id => id.provider === 'github');
+    const githubIdentity = user.identities?.find((id: any) => id.provider === 'github');
     if (githubIdentity) {
-      const { error } = await this.supabase.auth.unlinkIdentity(githubIdentity);
+      // Fix: Cast supabase.auth to any to access unlinkIdentity
+      const { error } = await (this.supabase.auth as any).unlinkIdentity(githubIdentity);
       if (error) throw error;
     }
   }
@@ -179,7 +188,8 @@ export class DatabaseService {
 
   async signOut() {
     localStorage.removeItem('df_force_login');
-    await this.supabase.auth.signOut();
+    // Fix: Cast supabase.auth to any to access signOut
+    await (this.supabase.auth as any).signOut();
   }
 
   async useToken(userId: string, email: string): Promise<User | null> {
@@ -191,9 +201,11 @@ export class DatabaseService {
     return this.getUser(email, userId);
   }
 
-  async updatePassword(newPassword: string) { await this.supabase.auth.updateUser({ password: newPassword }); }
-  async resetPassword(email: string) { return await this.supabase.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + '/profile' }); }
-  async signUp(email: string, password: string, name?: string) { return await this.supabase.auth.signUp({ email, password, options: { data: { full_name: name } } }); }
+  // Fix: Cast supabase.auth to any for all auth related operations below to bypass type mismatches
+  async updatePassword(newPassword: string) { await (this.supabase.auth as any).updateUser({ password: newPassword }); }
+  async resetPassword(email: string) { return await (this.supabase.auth as any).resetPasswordForEmail(email, { redirectTo: window.location.origin + '/profile' }); }
+  async signUp(email: string, password: string, name?: string) { return await (this.supabase.auth as any).signUp({ email, password, options: { data: { full_name: name } } }); }
+  
   async getPackages() { const { data } = await this.supabase.from('packages').select('*').order('price', { ascending: true }); return data || []; }
   async getUserTransactions(userId: string) { const { data } = await this.supabase.from('transactions').select('*, packages(name)').eq('user_id', userId); return data || []; }
   async submitPaymentRequest(userId: string, pkgId: string, amount: number, method: string, trxId: string, screenshot?: string, message?: string) {

@@ -44,6 +44,7 @@ export class GeminiService {
     image?: { data: string; mimeType: string },
     usePro: boolean = true
   ): Promise<GenerationResult> {
+    // Dynamic initialization inside the method to ensure we get the latest process.env
     const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     
     // Choose model based on premium status or availability
@@ -73,17 +74,26 @@ export class GeminiService {
           responseMimeType: "application/json"
         }
       });
-      return JSON.parse(response.text || '{}');
-    } catch (error: any) {
-      console.error("Gemini Generation Error:", error);
       
-      // Fallback to Flash if Pro fails and we haven't tried Flash yet
-      if (usePro && (error.status === 429 || error.status === 403 || error.status === 404)) {
-        console.log("Falling back to Gemini Flash due to API limits/errors...");
+      const text = response.text || '{}';
+      try {
+        return JSON.parse(text);
+      } catch (e) {
+        // Handle cases where model returns text around JSON
+        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        if (jsonMatch) return JSON.parse(jsonMatch[0]);
+        throw new Error("Invalid JSON response from AI");
+      }
+    } catch (error: any) {
+      console.error(`Gemini Error (${modelName}):`, error);
+      
+      // Fallback logic for various API issues
+      if (usePro) {
+        console.warn("Attempting fallback to Gemini 3 Flash...");
         return this.generateWebsite(prompt, currentFiles, history, image, false);
       }
       
-      return { answer: "System encountered an error. Please check your API configuration or network." };
+      throw error;
     }
   }
 }

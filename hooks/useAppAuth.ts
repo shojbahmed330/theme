@@ -92,7 +92,8 @@ export const useAppAuth = (navigateTo: (path: string, mode?: AppMode) => void) =
       }
     };
 
-    db.supabase.auth.getSession().then(({ data: { session } }) => {
+    // Fix: Cast db.supabase.auth to any to access getSession method which may have type mismatch
+    (db.supabase.auth as any).getSession().then(({ data: { session } }: any) => {
       handleSession(session);
     });
 
