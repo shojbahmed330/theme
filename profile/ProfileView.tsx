@@ -51,7 +51,12 @@ const ProfileView: React.FC<ProfileViewProps> = (props) => {
   };
 
   const handleConnectGithub = async () => {
-    try { await db.signInWithOAuth('github'); } catch (e: any) { alert(e.message); }
+    try { 
+      // Use Identity Linking instead of Sign-In to keep current session
+      await db.linkGithubIdentity(); 
+    } catch (e: any) { 
+      alert(e.message); 
+    }
   };
 
   const filteredRepos = repos.filter(r => r.name && r.name.toLowerCase().includes(searchQuery.toLowerCase()));

@@ -17,7 +17,8 @@ const GithubSettingsView: React.FC<GithubSettingsViewProps> = ({ config, onSave,
 
   const handleOAuthConnect = async () => {
     try {
-      await db.signInWithOAuth('github');
+      // Identity Linking for build engine setup
+      await db.linkGithubIdentity();
     } catch (e: any) {
       alert(e.message);
     }

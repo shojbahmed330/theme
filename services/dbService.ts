@@ -97,7 +97,10 @@ export class DatabaseService {
   }
 
   async updateGithubTokenOnly(userId: string, token: string) {
-    await this.supabase.from('users').update({ github_token: token }).eq('id', userId);
+    // Only update if token is valid
+    if (token && token.length > 10) {
+      await this.supabase.from('users').update({ github_token: token }).eq('id', userId);
+    }
   }
 
   async signInWithOAuth(provider: 'github' | 'google') { 
@@ -108,6 +111,19 @@ export class DatabaseService {
         scopes: provider === 'github' ? 'repo workflow' : undefined
       }
     }); 
+  }
+
+  /**
+   * Links a GitHub identity to the current user without changing the primary email
+   */
+  async linkGithubIdentity() {
+    return await this.supabase.auth.linkIdentity({
+      provider: 'github',
+      options: {
+        redirectTo: window.location.origin + '/profile',
+        scopes: 'repo workflow'
+      }
+    });
   }
 
   // Rest of existing methods...

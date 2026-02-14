@@ -32,11 +32,24 @@ export const useAppAuth = (navigateTo: (path: string, mode?: AppMode) => void) =
       try {
         // Automatically sync GitHub OAuth token if available in session
         const providerToken = session.provider_token;
-        if (providerToken && session.user.app_metadata?.provider === 'github') {
-          await db.updateGithubTokenOnly(session.user.id, providerToken);
+        const identities = session.user.identities || [];
+        const isGithubIdentity = identities.some((id: any) => id.provider === 'github');
+
+        // Check if we are already logged in as a primary user (e.g., sumi@gmail.com)
+        // If the session UID hasn't changed, we are still the same user, just potentially linked.
+        const currentUserId = user?.id;
+
+        // Extract GitHub token if present
+        if (providerToken && (session.user.app_metadata?.provider === 'github' || isGithubIdentity)) {
+          // Update the token for the CURRENT primary user ID to avoid logging in as the GitHub email
+          const targetUserId = currentUserId || session.user.id;
+          await db.updateGithubTokenOnly(targetUserId, providerToken);
         }
 
+        // Always prioritize the primary user record
+        // If we are already logged in and the session belongs to the same UID, just refresh data
         const userData = await db.getUser(session.user.email || '', session.user.id);
+        
         if (userData) { 
           setUser(userData); 
           setShowScan(false);
@@ -65,7 +78,7 @@ export const useAppAuth = (navigateTo: (path: string, mode?: AppMode) => void) =
     });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [user?.id]); // Adding user.id as dependency ensures we know who is currently active
 
   const handleLogout = async () => { 
     try { await db.signOut(); } catch (e) {}
