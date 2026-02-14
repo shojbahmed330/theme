@@ -74,24 +74,27 @@ jobs:
           sed -i 's/JavaVersion.VERSION_11/JavaVersion.VERSION_21/g' android/app/build.gradle
           sed -i 's/JavaVersion.VERSION_1_8/JavaVersion.VERSION_21/g' android/app/build.gradle
           
-          echo "android {" >> android/app/build.gradle
-          echo "    packagingOptions {" >> android/app/build.gradle
-          echo "        resources {" >> android/app/build.gradle
-          echo "            pickFirst 'META-INF/kotlin-stdlib.kotlin_module'" >> android/app/build.gradle
-          echo "            pickFirst 'META-INF/kotlin-stdlib-jdk8.kotlin_module'" >> android/app/build.gradle
-          echo "            pickFirst 'META-INF/kotlin-stdlib-jdk7.kotlin_module'" >> android/app/build.gradle
-          echo "        }" >> android/app/build.gradle
-          echo "    }" >> android/app/build.gradle
-          echo "}" >> android/app/build.gradle
-          
-          echo "configurations.all {" >> android/app/build.gradle
-          echo "    resolutionStrategy {" >> android/app/build.gradle
-          echo "        force 'org.jetbrains.kotlin:kotlin-stdlib:1.9.10'" >> android/app/build.gradle
-          echo "        force 'org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.10'" >> android/app/build.gradle
-          echo "        force 'org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.9.10'" >> android/app/build.gradle
-          echo "        force 'com.android.support:support-v4:28.0.0'" >> android/app/build.gradle
-          echo "    }" >> android/app/build.gradle
-          echo "}" >> android/app/build.gradle
+          # Inject configurations with correct bash echo syntax
+          cat <<EOF >> android/app/build.gradle
+android {
+    packagingOptions {
+        resources {
+            pickFirst 'META-INF/kotlin-stdlib.kotlin_module'
+            pickFirst 'META-INF/kotlin-stdlib-jdk8.kotlin_module'
+            pickFirst 'META-INF/kotlin-stdlib-jdk7.kotlin_module'
+        }
+    }
+}
+
+configurations.all {
+    resolutionStrategy {
+        force 'org.jetbrains.kotlin:kotlin-stdlib:1.9.10'
+        force 'org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.10'
+        force 'org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.9.10'
+        force 'com.android.support:support-v4:28.0.0'
+    }
+}
+EOF
 
           npx cap copy android
           
@@ -168,18 +171,19 @@ jobs:
       'X-GitHub-Api-Version': '2022-11-28'
     };
 
-    // ULTRA-STRICT APP ID SANITIZATION
-    let sanitizedAppId = (appConfig?.packageName || 'com.oneclick.studio')
+    // --- ABSOLUTE SANITIZATION FOR APP ID ---
+    // Remove all whitespace, special chars, and ensure at least two segments
+    let rawId = appConfig?.packageName || 'com.oneclick.studio';
+    let sanitizedAppId = rawId
       .toString()
-      .trim() // Clear leading/trailing spaces
+      .replace(/\s+/g, '') // Remove all spaces
       .toLowerCase()
-      .replace(/[^a-z0-9.]/g, '') // Remove everything except lowercase letters, numbers, and dots
-      .replace(/\.+/g, '.') // Replace multiple dots with one
-      .replace(/^\.|\.$/g, ''); // Remove leading/trailing dots
+      .replace(/[^a-z0-9.]/g, '') // Remove non-alphanumeric except dots
+      .replace(/\.+/g, '.') // No double dots
+      .replace(/^\.|\.$/g, ''); // No leading/trailing dots
 
-    // Ensure it has at least two segments
-    if (!sanitizedAppId.includes('.') || sanitizedAppId.split('.').length < 2) {
-      sanitizedAppId = `com.oneclick.${sanitizedAppId.replace('.', '')}`;
+    if (!sanitizedAppId.includes('.')) {
+      sanitizedAppId = `com.oneclick.${sanitizedAppId}`;
     }
 
     const capConfig = {
