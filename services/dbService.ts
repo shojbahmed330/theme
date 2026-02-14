@@ -56,7 +56,7 @@ export class DatabaseService {
         redirectTo: window.location.origin + '/profile',
         queryParams: {
           access_type: 'offline',
-          prompt: 'consent',
+          prompt: 'consent', // Forces GitHub to show account selection
         },
         scopes: provider === 'github' ? 'repo workflow' : undefined
       }
@@ -120,6 +120,9 @@ export class DatabaseService {
       provider: 'github',
       options: {
         redirectTo: window.location.origin + '/profile',
+        queryParams: {
+            prompt: 'consent' // CRITICAL: This allows switching accounts
+        },
         scopes: 'repo workflow'
       }
     });
