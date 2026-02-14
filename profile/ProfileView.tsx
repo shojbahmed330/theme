@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { LogOut } from 'lucide-react';
+import { LogOut, Loader2 } from 'lucide-react';
 import { User as UserType, Transaction, GithubConfig } from '../types.ts';
 import { DatabaseService } from '../services/dbService.ts';
 import { GithubService } from '../services/githubService.ts';
@@ -32,6 +32,7 @@ interface ProfileViewProps {
 const ProfileView: React.FC<ProfileViewProps> = (props) => {
   const [repos, setRepos] = useState<any[]>([]);
   const [repoLoading, setRepoLoading] = useState(false);
+  const [isLinking, setIsLinking] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   
   const isConnected = !!(props.githubConfig.token && props.githubConfig.owner);
@@ -51,11 +52,12 @@ const ProfileView: React.FC<ProfileViewProps> = (props) => {
   };
 
   const handleConnectGithub = async () => {
+    setIsLinking(true);
     try { 
-      // Use Identity Linking instead of Sign-In to keep current session
       await db.linkGithubIdentity(); 
     } catch (e: any) { 
-      alert(e.message); 
+      alert(e.message || "গিটহাব কানেক্ট করতে সমস্যা হচ্ছে।"); 
+      setIsLinking(false);
     }
   };
 
@@ -66,13 +68,23 @@ const ProfileView: React.FC<ProfileViewProps> = (props) => {
        <div className="max-w-4xl mx-auto space-y-8 animate-in slide-in-from-bottom-4 pb-20">
           <ProfileHeader user={props.user} onAvatarUpload={props.handleAvatarUpload} />
           
-          <GithubConnector 
-            githubConfig={props.githubConfig} isConnected={isConnected} 
-            repoLoading={repoLoading} searchQuery={searchQuery} 
-            setSearchQuery={setSearchQuery} filteredRepos={filteredRepos} 
-            onConnect={handleConnectGithub} onDisconnect={props.clearGithubConfig} 
-            onSelectRepo={(name) => props.onSaveGithubConfig({ ...props.githubConfig, repo: name })} 
-          />
+          <div className="relative">
+            {isLinking && (
+              <div className="absolute inset-0 z-50 bg-black/40 backdrop-blur-sm flex items-center justify-center rounded-[2.5rem]">
+                <div className="flex flex-col items-center gap-4">
+                  <Loader2 className="animate-spin text-pink-500" size={40}/>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-white">Redirecting to GitHub...</span>
+                </div>
+              </div>
+            )}
+            <GithubConnector 
+              githubConfig={props.githubConfig} isConnected={isConnected} 
+              repoLoading={repoLoading} searchQuery={searchQuery} 
+              setSearchQuery={setSearchQuery} filteredRepos={filteredRepos} 
+              onConnect={handleConnectGithub} onDisconnect={props.clearGithubConfig} 
+              onSelectRepo={(name) => props.onSaveGithubConfig({ ...props.githubConfig, repo: name })} 
+            />
+          </div>
 
           <ProfileStats user={props.user} />
           <TransactionHistory transactions={props.userTransactions} />

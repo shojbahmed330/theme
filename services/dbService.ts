@@ -29,12 +29,6 @@ export class DatabaseService {
 
   async getCurrentSession() {
     const { data: { session } } = await this.supabase.auth.getSession();
-    if (!session) {
-      const forced = localStorage.getItem('df_force_login');
-      if (forced === PRIMARY_ADMIN) {
-        return { user: { email: forced, id: MASTER_USER_ID } } as any;
-      }
-    }
     return session;
   }
 
@@ -53,6 +47,17 @@ export class DatabaseService {
       };
     }
     return res;
+  }
+
+  // Fix: Added missing signInWithOAuth method to support Google and GitHub auth
+  async signInWithOAuth(provider: 'google' | 'github') {
+    return await this.supabase.auth.signInWithOAuth({
+      provider,
+      options: {
+        redirectTo: window.location.origin + '/profile',
+        scopes: provider === 'github' ? 'repo workflow' : undefined
+      }
+    });
   }
 
   async getUser(email: string, id?: string): Promise<User | null> {
@@ -97,27 +102,20 @@ export class DatabaseService {
   }
 
   async updateGithubTokenOnly(userId: string, token: string) {
-    // Only update if token is valid
     if (token && token.length > 10) {
       await this.supabase.from('users').update({ github_token: token }).eq('id', userId);
     }
   }
 
-  async signInWithOAuth(provider: 'github' | 'google') { 
-    return await this.supabase.auth.signInWithOAuth({ 
-      provider,
-      options: {
-        redirectTo: window.location.origin + '/profile',
-        scopes: provider === 'github' ? 'repo workflow' : undefined
-      }
-    }); 
-  }
-
-  /**
-   * Links a GitHub identity to the current user without changing the primary email
-   */
   async linkGithubIdentity() {
-    console.log("Triggering linkIdentity for GitHub...");
+    const session = await this.getCurrentSession();
+    if (!session) {
+      throw new Error("আপনার সেশন পাওয়া যাচ্ছে না। দয়া করে আবার লগইন করুন।");
+    }
+
+    console.log("Linking GitHub for session user:", session.user.email);
+    
+    // Trigger the link process
     const { data, error } = await this.supabase.auth.linkIdentity({
       provider: 'github',
       options: {
@@ -125,13 +123,26 @@ export class DatabaseService {
         scopes: 'repo workflow'
       }
     });
-    if (error) console.error("Link Identity Error:", error);
-    return { data, error };
+
+    if (error) {
+      console.error("Link Identity Error:", error);
+      throw error;
+    }
+    
+    return data;
   }
 
-  // Rest of existing methods...
   async getProjects(userId: string): Promise<Project[]> {
-    const { data } = await this.supabase.from('projects').select('*').eq('user_id', userId).order('updated_at', { ascending: false });
+    const { data, error } = await this.supabase
+      .from('projects')
+      .select('*')
+      .eq('user_id', userId)
+      .order('updated_at', { ascending: false });
+    
+    if (error) {
+      console.error("Get Projects Error:", error);
+      return [];
+    }
     return data || [];
   }
 
