@@ -44,10 +44,15 @@ export class GeminiService {
     image?: { data: string; mimeType: string },
     usePro: boolean = false
   ): Promise<GenerationResult> {
-    // Accessing process.env.API_KEY directly as required by the platform instructions
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const key = process.env.API_KEY;
     
-    // Default to Flash for speed and reliability, use Pro only when requested or needed
+    if (!key || key === "undefined") {
+      throw new Error("API_KEY not found in environment. Please redeploy the app on Vercel after setting the environment variable.");
+    }
+
+    // Always use new instance to ensure the latest key from context is used
+    const ai = new GoogleGenAI({ apiKey: key });
+    
     const modelName = usePro ? 'gemini-3-pro-preview' : 'gemini-3-flash-preview';
 
     const parts: any[] = [
@@ -85,21 +90,21 @@ export class GeminiService {
         if (jsonMatch) return JSON.parse(jsonMatch[0]);
         throw new Error("Failed to parse AI response as JSON.");
       }
+    // Fix: Removed extra parenthesis in catch clause to correctly scope the error variable
     } catch (error: any) {
       console.error(`Gemini Service Error (${modelName}):`, error);
       
-      // Auto-fallback if Pro fails (e.g. quota, region, etc)
+      // Auto-fallback if Pro fails
       if (usePro && !error.message?.includes('API_KEY_INVALID')) {
         console.warn("Retrying with Flash fallback...");
         return this.generateWebsite(prompt, currentFiles, history, image, false);
       }
       
-      // Handle common status errors
       const errMsg = error.message || "";
       if (errMsg.includes('401') || errMsg.includes('API_KEY_INVALID')) {
-        throw new Error("Invalid API Key. Please update it in your project settings.");
+        throw new Error("Invalid API Key. Please update it in your Vercel/Project settings.");
       } else if (errMsg.includes('429')) {
-        throw new Error("Quota exceeded. Please wait a moment or upgrade your plan.");
+        throw new Error("Quota exceeded. Please wait a moment or upgrade your Gemini plan.");
       }
       
       throw error;
