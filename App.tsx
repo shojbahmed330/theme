@@ -127,6 +127,16 @@ const App: React.FC = () => {
     if (user) await db.updateGithubConfig(user.id, config);
   };
 
+  const handleClearGithubConfig = async () => {
+    if (!user) return;
+    if (!window.confirm("আপনি কি নিশ্চিতভাবে গিটহাব ডিসকানেক্ট করতে চান?")) return;
+    
+    const emptyConfig = { token: '', owner: '', repo: '' };
+    setGithubConfig(emptyConfig);
+    await db.updateGithubConfig(user.id, emptyConfig);
+    alert("GitHub Disconnected Successfully.");
+  };
+
   const handlePaymentScreenshotUpload = () => {
     if (fileInputRef.current) fileInputRef.current.click();
   };
@@ -244,7 +254,7 @@ const App: React.FC = () => {
             setOldPassword={setOldPassword} newPass={newPass} setNewPass={setNewPass}
             passError={""} isUpdatingPass={isUpdatingPass} handlePasswordChange={handlePasswordChange}
             handleLogout={handleLogout} handleAvatarUpload={() => {}} githubConfig={githubConfig}
-            onSaveGithubConfig={handleSaveGithubConfig} clearGithubConfig={() => {}}
+            onSaveGithubConfig={handleSaveGithubConfig} clearGithubConfig={handleClearGithubConfig}
           />
         ) : path === '/projects' ? (
           <ProjectsView 

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { LogOut, Loader2, AlertCircle, Key, Github } from 'lucide-react';
+import { LogOut, Loader2, AlertCircle, Key, Github, Zap, ExternalLink, Settings, ShieldAlert } from 'lucide-react';
 import { User as UserType, Transaction, GithubConfig } from '../types.ts';
 import { DatabaseService } from '../services/dbService.ts';
 import { GithubService } from '../services/githubService.ts';
@@ -34,7 +34,7 @@ const ProfileView: React.FC<ProfileViewProps> = (props) => {
   const [repoLoading, setRepoLoading] = useState(false);
   const [isLinking, setIsLinking] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [linkingError, setLinkingError] = useState<string | null>(null);
+  const [linkingError, setLinkingError] = useState<{ type: 'disabled' | 'exists', message: string } | null>(null);
   
   const isConnected = !!(props.githubConfig.token && props.githubConfig.owner);
   const db = DatabaseService.getInstance();
@@ -60,10 +60,22 @@ const ProfileView: React.FC<ProfileViewProps> = (props) => {
     } catch (e: any) { 
       setIsLinking(false);
       if (e.message.includes('Manual linking is disabled')) {
-        setLinkingError("Manual Account Linking বন্ধ করা আছে।");
+        setLinkingError({ type: 'disabled', message: "Manual Link অপশনটি আপনার সুপাবেজ ড্যাশবোর্ডে অফ করা আছে।" });
+      } else if (e.message.includes('identity_already_exists') || e.message.includes('already linked')) {
+        setLinkingError({ type: 'exists', message: "এই গিটহাব অ্যাকাউন্টটি ইতিমধ্যে অন্য একটি প্রোফাইলের সাথে যুক্ত আছে।" });
       } else {
         alert(e.message || "গিটহাব কানেক্ট করতে সমস্যা হচ্ছে।"); 
       }
+    }
+  };
+
+  const handleFallbackOAuth = async () => {
+    setIsLinking(true);
+    try {
+      await db.signInWithOAuth('github');
+    } catch (e: any) {
+      alert(e.message);
+      setIsLinking(false);
     }
   };
 
@@ -85,24 +97,39 @@ const ProfileView: React.FC<ProfileViewProps> = (props) => {
             )}
 
             {linkingError && (
-              <div className="p-8 bg-amber-500/10 border border-amber-500/20 rounded-[2.5rem] mb-6 flex flex-col items-center text-center gap-4 animate-in zoom-in">
-                 <AlertCircle size={40} className="text-amber-500"/>
-                 <h4 className="text-xl font-black text-white uppercase">Manual Linking Disabled</h4>
-                 <p className="text-xs text-slate-400 max-w-sm leading-relaxed">আপনার সুপাবেজ প্রজেক্টে ম্যানুয়াল অ্যাকাউন্ট লিঙ্কিং বন্ধ করা আছে। অটোমেটিক বিল্ডের জন্য সরাসরি গিটহাব টোকেন বসান।</p>
-                 <div className="flex gap-3">
+              <div className="p-8 bg-amber-500/10 border border-amber-500/20 rounded-[2.5rem] mb-6 flex flex-col items-center text-center gap-6 animate-in zoom-in">
+                 <div className="w-16 h-16 bg-amber-500/20 rounded-full flex items-center justify-center shadow-[0_0_30px_rgba(245,158,11,0.2)]">
+                   {linkingError.type === 'exists' ? <ShieldAlert size={32} className="text-red-500"/> : <AlertCircle size={32} className="text-amber-500"/>}
+                 </div>
+                 
+                 <div className="space-y-2">
+                   <h4 className="text-xl font-black text-white uppercase tracking-tight">
+                     {linkingError.type === 'exists' ? 'Identity Already Linked' : 'Configuration Required'}
+                   </h4>
+                   <p className="text-xs text-slate-400 max-w-sm leading-relaxed">
+                     {linkingError.type === 'exists' 
+                        ? "আপনি যে গিটহাব অ্যাকাউন্টটি লিঙ্ক করতে চাচ্ছেন, সেটি অন্য একটি অ্যাকাউন্টে ব্যবহৃত হচ্ছে। দয়া করে সেই অ্যাকাউন্টে লগইন করে গিটহাব ডিসকানেক্ট করুন, অথবা ম্যানুয়াল টোকেন ব্যবহার করুন।" 
+                        : "ম্যানুয়াল অ্যাকাউন্ট লিঙ্কিং অপশনটি প্রোভাইডার পেজে নয়, বরং Authentication -> Settings -> External Providers সেকশনে পাবেন। অথবা নিচের বাটনগুলো ব্যবহার করুন:"}
+                   </p>
+                 </div>
+
+                 <div className="flex flex-wrap justify-center gap-4 w-full px-4">
                    <button 
-                    onClick={() => setLinkingError(null)} 
-                    className="px-6 py-3 bg-white/5 rounded-2xl text-[10px] font-black uppercase"
+                    onClick={handleFallbackOAuth}
+                    className="flex-1 min-w-[140px] py-4 bg-pink-600 rounded-2xl text-[10px] font-black uppercase text-white flex items-center justify-center gap-2 shadow-lg shadow-pink-600/20 hover:scale-105 transition-all"
                    >
-                     Cancel
+                     <Zap size={14}/> GitHub Sign In
                    </button>
+                   
                    <button 
                     onClick={() => window.open('https://github.com/settings/tokens', '_blank')}
-                    className="px-6 py-3 bg-amber-600 rounded-2xl text-[10px] font-black uppercase text-white flex items-center gap-2"
+                    className="flex-1 min-w-[140px] py-4 bg-zinc-800 rounded-2xl text-[10px] font-black uppercase text-white flex items-center justify-center gap-2 border border-white/5 hover:bg-zinc-700 transition-all"
                    >
-                     <Key size={14}/> Get Token
+                     <Key size={14}/> Manual Token
                    </button>
                  </div>
+
+                 <button onClick={() => setLinkingError(null)} className="text-[10px] font-black uppercase text-zinc-500 hover:text-white transition-colors">Dismiss</button>
               </div>
             )}
 
