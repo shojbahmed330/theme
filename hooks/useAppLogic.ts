@@ -46,9 +46,13 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
   const github = useRef(new GithubService());
 
   const loadProject = (p: Project) => {
+    if (!p) return;
     setCurrentProjectId(p.id);
-    setProjectFiles(p.files);
+    setProjectFiles(p.files || {});
     if (p.config) setProjectConfig(p.config);
+    // Auto-select index.html if it exists
+    if (p.files && p.files['index.html']) setSelectedFile('index.html');
+    else if (p.files) setSelectedFile(Object.keys(p.files)[0]);
   };
 
   const handleSend = async (extraData?: string) => {
@@ -56,6 +60,7 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
     const text = extraData || input; 
     const currentImage = selectedImage;
 
+    // Local update of messages for user input
     if (extraData) {
       setMessages(prev => {
         const lastAsstIdx = [...prev].reverse().findIndex(m => m.role === 'assistant' && m.questions);
@@ -81,7 +86,6 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
 
     setIsGenerating(true);
     try {
-      // Prioritize Flash for Free Tier stability, use Pro only for complex logic
       const usePro = user ? user.tokens > 100 : false;
 
       const res = await gemini.current.generateWebsite(
@@ -92,22 +96,31 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
         usePro
       );
 
-      if (res.files) {
-        const newFiles = { ...projectFiles, ...res.files };
-        setProjectFiles(newFiles);
-        if (user && currentProjectId) {
-           await db.updateProject(user.id, currentProjectId, newFiles, projectConfig);
-        }
+      // Handle file updates carefully to avoid blank screen
+      if (res.files && Object.keys(res.files).length > 0) {
+        setProjectFiles(prev => {
+          const newFiles = { ...prev, ...res.files };
+          // If we are logged in, sync to database immediately
+          if (user && currentProjectId) {
+            db.updateProject(user.id, currentProjectId, newFiles, projectConfig).catch(err => {
+              console.error("Database Auto-Sync Failed:", err);
+            });
+          }
+          return newFiles;
+        });
       }
+
+      // Add assistant message with safety checks
       setMessages(prev => [...prev, { 
         id: (Date.now() + 1).toString(), 
         role: 'assistant', 
-        content: res.answer, 
+        content: res.answer || "Processing complete.", 
         timestamp: Date.now(),
-        questions: res.questions,
-        thought: res.thought,
+        questions: Array.isArray(res.questions) ? res.questions : [],
+        thought: res.thought || "",
         files: res.files 
       }]);
+
       if (user) { 
         const updated = await db.useToken(user.id, user.email); 
         if (updated) setUser(updated); 
@@ -117,7 +130,7 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
       setMessages(prev => [...prev, { 
         id: Date.now().toString(), 
         role: 'assistant', 
-        content: `Error: ${e.message || "Generation process failed. Please check your API key or connection."}`,
+        content: `Error: ${e.message || "An unexpected error occurred. Please try again."}`,
         timestamp: Date.now()
       }]); 
     } finally { 

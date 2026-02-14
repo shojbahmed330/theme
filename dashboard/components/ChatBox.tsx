@@ -24,7 +24,12 @@ const Questionnaire: React.FC<{
   const [answers, setAnswers] = useState<Record<string, any>>({});
   const [otherText, setOtherText] = useState('');
 
+  // Safety: If no questions, don't render
+  if (!questions || questions.length === 0) return null;
+
   const q = questions[currentIdx];
+  if (!q) return null;
+  
   const isLast = currentIdx === questions.length - 1;
 
   const toggleOption = (optId: string) => {
@@ -33,9 +38,9 @@ const Questionnaire: React.FC<{
       if (q.type === 'single') {
         return { ...prev, [q.id]: optId };
       } else {
-        const next = current.includes(optId) 
+        const next = Array.isArray(current) && current.includes(optId) 
           ? current.filter((id: string) => id !== optId) 
-          : [...current, optId];
+          : [...(Array.isArray(current) ? current : []), optId];
         return { ...prev, [q.id]: next };
       }
     });
@@ -47,12 +52,12 @@ const Questionnaire: React.FC<{
         const ans = answers[question.id];
         let text = "";
         if (question.type === 'single') {
-          const opt = question.options.find(o => o.id === ans);
-          text = opt ? opt.label : (ans === 'other' ? `Other: ${otherText}` : 'N/A');
+          const opt = (question.options || []).find(o => o.id === ans);
+          text = opt ? opt.label : (ans === 'other' ? `Other: ${otherText}` : 'Not specified');
         } else {
-          text = (ans || []).map((id: string) => question.options.find(o => id === id)?.label).join(', ');
+          text = (Array.isArray(ans) ? ans : []).map((id: string) => (question.options || []).find(o => o.id === id)?.label).filter(Boolean).join(', ') || 'None';
         }
-        return `${question.text.replace('?', '')}: ${text}`;
+        return `• ${question.text.replace('?', '')}: ${text}`;
       }).join('\n');
       onComplete(formattedAnswers);
     } else {
@@ -65,6 +70,7 @@ const Questionnaire: React.FC<{
     <div className="w-full bg-[#121214] border border-white/5 rounded-3xl overflow-hidden shadow-2xl animate-in zoom-in duration-300 my-4">
       <div className="p-4 border-b border-white/5 bg-white/5 flex items-center justify-between">
         <span className="text-[10px] font-black uppercase tracking-[0.2em] text-pink-500">System Clarification</span>
+        <span className="text-[9px] font-bold text-zinc-600">Step {currentIdx + 1} of {questions.length}</span>
       </div>
       
       <div className="p-6 space-y-6">
@@ -76,10 +82,10 @@ const Questionnaire: React.FC<{
         </div>
 
         <div className="space-y-2.5">
-          {q.options.map(opt => {
+          {(q.options || []).map(opt => {
             const isSelected = q.type === 'single' 
               ? answers[q.id] === opt.id 
-              : (answers[q.id] || []).includes(opt.id);
+              : Array.isArray(answers[q.id]) && answers[q.id].includes(opt.id);
 
             return (
               <button 
@@ -175,7 +181,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({
       >
         {messages.length > 0 ? messages.map((m, idx) => (
           <div 
-            key={m.id} 
+            key={m.id || idx} 
             className={`flex flex-col ${m.role === 'user' ? 'items-end' : 'items-start'} group animate-in fade-in slide-in-from-bottom-4 duration-500 fill-mode-both`}
             style={{ animationDelay: `${idx * 50}ms` }}
           >
@@ -201,7 +207,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({
                   </div>
                 )}
                 <div className="relative z-10 whitespace-pre-wrap font-medium">
-                  {m.content.split(/(\*\*.*?\*\*)/g).map((part, i) => 
+                  {m.content && m.content.split(/(\*\*.*?\*\*)/g).map((part, i) => 
                     part.startsWith('**') && part.endsWith('**') 
                     ? <strong key={i} className={m.role === 'user' ? 'text-white' : 'text-pink-400'} style={{fontWeight: 900}}>{part.slice(2, -2)}</strong> 
                     : part
@@ -212,7 +218,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({
                   <div className="mt-4 p-5 bg-white/5 border border-white/5 rounded-2xl italic text-zinc-500 text-[11px] leading-relaxed animate-in fade-in duration-700">
                     <div className="flex items-center gap-2 mb-1">
                        <Zap size={10} className="text-pink-500"/>
-                       <span className="font-black uppercase text-[9px] tracking-widest text-pink-500">Config Built</span>
+                       <span className="font-black uppercase text-[9px] tracking-widest text-pink-500">Configuration Locked</span>
                     </div>
                     {m.answersSummary.split('\n').map((line: string, i: number) => (
                       <div key={i}>{line}</div>
@@ -223,14 +229,14 @@ const ChatBox: React.FC<ChatBoxProps> = ({
                     <Questionnaire 
                       questions={m.questions} 
                       onComplete={(answers) => handleSend(answers)}
-                      onSkip={() => handleSend("User skipped clarifying questions. Proceed with best estimates.")}
+                      onSkip={() => handleSend("User skipped clarifying questions. Proceed with modern default estimates.")}
                     />
                   )
                 )}
               </div>
               
               <div className={`text-[8px] mt-3 font-black uppercase tracking-widest text-zinc-600 opacity-0 group-hover:opacity-100 transition-opacity ${m.role === 'user' ? 'mr-4 self-end' : 'ml-4 self-start'}`}>
-                LOG: {new Date(m.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                {new Date(m.timestamp || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
               </div>
             </div>
           </div>
@@ -259,7 +265,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({
                   <div className="absolute inset-0 bg-pink-500/20 blur-md rounded-full animate-ping"></div>
                   <Loader2 className="animate-spin relative z-10" size={18}/>
                </div>
-               <span className="text-xs font-black uppercase tracking-tighter text-pink-500">Building App...</span>
+               <span className="text-xs font-black uppercase tracking-tighter text-pink-500">Processing Stream...</span>
             </div>
           </div>
         )}
@@ -300,7 +306,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({
              value={input} 
              onChange={e => setInput(e.target.value)} 
              onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSend())} 
-             placeholder="Message AI..." 
+             placeholder="Describe your vision..." 
              className="flex-1 bg-transparent p-3 text-sm h-14 outline-none text-white resize-none placeholder:text-zinc-700 font-bold" 
            />
            <button 

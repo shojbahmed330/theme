@@ -5,6 +5,11 @@ import { ChatMessage, Question } from "../types";
 const SYSTEM_PROMPT = `You are OneClick Studio, a World-Class Senior Lead Android Hybrid Developer & UI/UX Designer.
 Your absolute priority is to ensure that EVERY button, menu, and UI element you generate is 100% FUNCTIONAL and CLICKABLE in the preview.
 
+### AMBIGUITY PROTOCOL (CRITICAL):
+- If a user's request is broad (e.g., "make a calculator", "build a login page", "create a weather app"), you MUST NOT generate code immediately.
+- Instead, you MUST use the "questions" array to provide 3-4 specific questions to narrow down the requirements (e.g., features, color theme, complexity).
+- Only proceed to generate files once the user provides details or explicitly says "just build it".
+
 ### CRITICAL MOBILE RESPONSIVENESS RULES:
 - **SAFE AREAS**: Use 'pt-[env(safe-area-inset-top)]' or ensure layouts don't collide with the top status bar (network, time).
 - **VIEWPORT HEIGHT**: Always use 'h-[100dvh]' or 'min-h-[100dvh]' for main containers to ensure they fit exactly within any mobile screen.
@@ -19,9 +24,16 @@ Your absolute priority is to ensure that EVERY button, menu, and UI element you 
 
 ### RESPONSE JSON SCHEMA:
 {
-  "answer": "Professional explanation.",
-  "thought": "Reasoning.",
-  "questions": [],
+  "answer": "Professional explanation of what you are doing or asking.",
+  "thought": "Internal reasoning.",
+  "questions": [
+    {
+      "id": "unique_id",
+      "text": "The question text?",
+      "type": "single",
+      "options": [{"id": "opt1", "label": "Option 1", "subLabel": "Details"}]
+    }
+  ],
   "files": { "index.html": "..." }
 }
 
@@ -50,9 +62,7 @@ export class GeminiService {
       throw new Error("API_KEY not found in environment. Please redeploy the app on Vercel after setting the environment variable.");
     }
 
-    // Always use new instance to ensure the latest key from context is used
     const ai = new GoogleGenAI({ apiKey: key });
-    
     const modelName = usePro ? 'gemini-3-pro-preview' : 'gemini-3-flash-preview';
 
     const parts: any[] = [
@@ -84,7 +94,14 @@ export class GeminiService {
       if (!text) throw new Error("Empty response from AI.");
 
       try {
-        return JSON.parse(text);
+        const parsed = JSON.parse(text);
+        // Safety: Ensure questions and files are handled correctly even if empty
+        return {
+          answer: parsed.answer || "Processing request...",
+          thought: parsed.thought || "",
+          questions: Array.isArray(parsed.questions) ? parsed.questions : [],
+          files: typeof parsed.files === 'object' ? parsed.files : undefined
+        };
       } catch (e) {
         const jsonMatch = text.match(/\{[\s\S]*\}/);
         if (jsonMatch) return JSON.parse(jsonMatch[0]);
@@ -92,20 +109,9 @@ export class GeminiService {
       }
     } catch (error: any) {
       console.error(`Gemini Service Error (${modelName}):`, error);
-      
-      // Auto-fallback if Pro fails
       if (usePro && !error.message?.includes('API_KEY_INVALID')) {
-        console.warn("Retrying with Flash fallback...");
         return this.generateWebsite(prompt, currentFiles, history, image, false);
       }
-      
-      const errMsg = error.message || "";
-      if (errMsg.includes('401') || errMsg.includes('API_KEY_INVALID')) {
-        throw new Error("Invalid API Key. Please update it in your Vercel/Project settings.");
-      } else if (errMsg.includes('429')) {
-        throw new Error("Quota exceeded. Please wait a moment or upgrade your Gemini plan.");
-      }
-      
       throw error;
     }
   }
