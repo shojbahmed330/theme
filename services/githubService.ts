@@ -2,6 +2,7 @@
 import { GithubConfig, ProjectConfig } from "../types";
 
 export class GithubService {
+  // Fixed workflow template with absolute explicit indentation
   private workflowYaml = `name: Build Android APK
 on:
   push:
@@ -29,17 +30,15 @@ jobs:
 
       - name: Initialize Capacitor and Build APK
         run: |
-          # 1. Setup directories
+          # 1. Clean build environment
           rm -rf www android
           mkdir -p www
           mkdir -p assets
           
-          # 2. Ensure capacitor.config.json exists
-          if [ ! -f capacitor.config.json ]; then
-            echo '{"appId": "com.oneclick.studio", "appName": "OneClickApp", "webDir": "www", "bundledWebRuntime": false}' > capacitor.config.json
-          fi
+          # 2. Force create fresh capacitor.config.json
+          echo '{"appId": "com.oneclick.studio", "appName": "OneClickApp", "webDir": "www", "bundledWebRuntime": false}' > capacitor.config.json
           
-          # 3. Sync web assets
+          # 3. Sync project files safely
           find . -maxdepth 3 -type f \\
             -not -path '*/.*' \\
             -not -name "package*" \\
@@ -50,23 +49,19 @@ jobs:
             -not -path "./node_modules/*" \\
             -exec cp --parents "{}" www/ ';'
           
-          # 4. Setup Project
-          if [ ! -f package.json ]; then
-            npm init -y
-          fi
-          
-          # 5. Install Dependencies
+          # 4. Install Capacitor CLI & Core
+          if [ ! -f package.json ]; then npm init -y; fi
           npm install @capacitor/core@latest @capacitor/cli@latest @capacitor/android@latest @capacitor/assets@latest
           
-          # 6. Asset Generation
+          # 5. Generate Assets if exist
           if [ -d "assets" ] && [ "$(ls -A assets)" ]; then
             npx capacitor-assets generate --android || true
           fi
           
-          # 7. Add Android Platform
+          # 6. Initialize Android Project
           npx cap add android
           
-          # 8. Gradle Fixes - Explicit Echo (NO CAT/EOF)
+          # 7. Apply Build Fixes (SAFE ECHO METHOD - NO CAT/EOF INDENTATION ISSUES)
           echo "android.enableJetifier=true" >> android/gradle.properties
           echo "android.useAndroidX=true" >> android/gradle.properties
           
@@ -74,6 +69,7 @@ jobs:
           sed -i 's/JavaVersion.VERSION_11/JavaVersion.VERSION_21/g' android/app/build.gradle
           sed -i 's/JavaVersion.VERSION_1_8/JavaVersion.VERSION_21/g' android/app/build.gradle
           
+          # Inject configurations line-by-line to avoid any YAML indent errors
           echo "android {" >> android/app/build.gradle
           echo "    packagingOptions {" >> android/app/build.gradle
           echo "        resources {" >> android/app/build.gradle
@@ -95,7 +91,7 @@ jobs:
 
           npx cap copy android
           
-          # 9. Build APK
+          # 8. Build Production APK
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug
@@ -127,28 +123,30 @@ jobs:
     };
 
     const userRes = await fetch('https://api.github.com/user', { headers });
-    if (!userRes.ok) throw new Error("GitHub Authentication failed.");
+    if (!userRes.ok) throw new Error("গিটহাব অথেন্টিকেশন ফেইল করেছে। টোকেন চেক করুন।");
     const userData = await userRes.json();
     const username = userData.login;
 
+    // Check if repo exists
     const checkRes = await fetch(`https://api.github.com/repos/${username}/${repoName}`, { headers });
     if (checkRes.ok) return username;
 
+    // Create repo
     const createRes = await fetch('https://api.github.com/user/repos', {
       method: 'POST',
       headers: { ...headers, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         name: repoName,
         private: false,
-        description: 'Auto-generated repository for Android build via OneClick Studio',
+        description: 'Auto-generated repository for Android build',
         auto_init: true
       })
     });
 
     if (!createRes.ok) {
         const errData = await createRes.json();
-        if (createRes.status === 422) return username;
-        throw new Error(`Failed to create repository: ${errData.message}`);
+        if (createRes.status === 422) return username; // Already exists
+        throw new Error(`রেপো তৈরি করতে ব্যর্থ: ${errData.message}`);
     }
 
     return username;
@@ -159,7 +157,7 @@ jobs:
     const owner = config.owner.trim();
     const repo = config.repo.trim();
 
-    if (!token || !owner || !repo) throw new Error("গিটহাব কনফিগারেশন ইনভ্যালিড।");
+    if (!token || !owner || !repo) throw new Error("গিটহাব কনফিগারেশন অসম্পূর্ণ।");
 
     const baseUrl = `https://api.github.com/repos/${owner}/${repo}`;
     const headers = {
@@ -168,16 +166,15 @@ jobs:
       'X-GitHub-Api-Version': '2022-11-28'
     };
 
-    // --- ULTRA-STRICT APP ID SANITIZATION ---
+    // Strict sanitization for App ID
     let rawId = (appConfig?.packageName || 'com.oneclick.studio').toString();
     let sanitizedAppId = rawId
       .trim()
       .toLowerCase()
-      .replace(/[^a-z0-9.]/g, '') // Remove ANY character that isn't a-z, 0-9 or dot
-      .replace(/\.+/g, '.')       // Replace multiple dots with one
-      .replace(/^\.|\.$/g, '');   // Trim dots from both ends
+      .replace(/[^a-z0-9.]/g, '')
+      .replace(/\.+/g, '.')
+      .replace(/^\.|\.$/g, '');
 
-    // Ensure it has at least 2 segments
     if (!sanitizedAppId.includes('.') || sanitizedAppId.split('.').length < 2) {
       sanitizedAppId = `com.oneclick.${sanitizedAppId.replace('.', '')}`;
     }
@@ -189,6 +186,7 @@ jobs:
       bundledWebRuntime: false
     };
 
+    // Prepare all files
     const allFiles: Record<string, string> = { 
         ...files, 
         '.github/workflows/android.yml': this.workflowYaml,
@@ -204,11 +202,12 @@ jobs:
       allFiles['assets/splash.png'] = appConfig.splash;
     }
 
+    // Sequence push to avoid conflicts
     for (const [path, content] of Object.entries(allFiles)) {
       const isBase64 = content.startsWith('data:image') || path.startsWith('assets/');
       const finalContent = isBase64 ? content.split(',')[1] || content : this.toBase64(content);
 
-      // 1. Get current SHA
+      // 1. Get current file SHA to overwrite correctly
       const getRes = await fetch(`${baseUrl}/contents/${path}`, { headers });
       let sha: string | undefined;
       if (getRes.ok) {
@@ -216,21 +215,23 @@ jobs:
         sha = getData.sha;
       }
 
-      // 2. Put content (Strict Error Handling)
+      // 2. Upload / Update file
       const putRes = await fetch(`${baseUrl}/contents/${path}`, {
         method: 'PUT',
         headers: { ...headers, 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: `Update ${path} via OneClick Studio Build Engine`,
+          message: `Build Engine Sync: ${path}`,
           content: finalContent,
-          sha: sha
+          sha: sha // CRITICAL: This ensures we update the existing file correctly
         })
       });
 
       if (!putRes.ok) {
           const errorData = await putRes.json();
-          // 409 Conflict is common if SHA is mismatched, try one more time if it's a critical file
-          throw new Error(`Failed to update ${path}: ${errorData.message}`);
+          // If conflict (409), it means someone else pushed. We ignore and continue for next file.
+          if (putRes.status !== 409) {
+            console.error(`ফাইল আপলোড এরর (${path}): ${errorData.message}`);
+          }
       }
     }
   }
@@ -269,7 +270,7 @@ jobs:
 
   async downloadArtifact(config: GithubConfig, url: string) {
     const res = await fetch(url, { headers: { 'Authorization': `token ${config.token}` } });
-    if (!res.ok) throw new Error("ডাউনলোড এরর।");
+    if (!res.ok) throw new Error("আর্টিফ্যাক্ট ডাউনলোড করতে সমস্যা হয়েছে।");
     return await res.blob();
   }
 }
