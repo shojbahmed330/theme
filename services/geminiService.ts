@@ -44,10 +44,8 @@ export class GeminiService {
     image?: { data: string; mimeType: string },
     usePro: boolean = false
   ): Promise<GenerationResult> {
-    const apiKey = process.env.API_KEY;
-    if (!apiKey) throw new Error("API Key missing. Please check your environment configuration.");
-
-    const ai = new GoogleGenAI({ apiKey });
+    // Accessing process.env.API_KEY directly as required by the platform instructions
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
     
     // Default to Flash for speed and reliability, use Pro only when requested or needed
     const modelName = usePro ? 'gemini-3-pro-preview' : 'gemini-3-flash-preview';
@@ -90,16 +88,17 @@ export class GeminiService {
     } catch (error: any) {
       console.error(`Gemini Service Error (${modelName}):`, error);
       
-      // Auto-fallback if Pro fails
-      if (usePro && !error.message.includes('API_KEY_INVALID')) {
+      // Auto-fallback if Pro fails (e.g. quota, region, etc)
+      if (usePro && !error.message?.includes('API_KEY_INVALID')) {
         console.warn("Retrying with Flash fallback...");
         return this.generateWebsite(prompt, currentFiles, history, image, false);
       }
       
       // Handle common status errors
-      if (error.message.includes('401') || error.message.includes('API_KEY_INVALID')) {
-        throw new Error("Invalid API Key. Please update it in your settings.");
-      } else if (error.message.includes('429')) {
+      const errMsg = error.message || "";
+      if (errMsg.includes('401') || errMsg.includes('API_KEY_INVALID')) {
+        throw new Error("Invalid API Key. Please update it in your project settings.");
+      } else if (errMsg.includes('429')) {
         throw new Error("Quota exceeded. Please wait a moment or upgrade your plan.");
       }
       

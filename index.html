@@ -9,7 +9,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script>
-        window.process = window.process || { env: {} };
+        // Ensure process.env is available for SDKs but don't overwrite if platform provided
+        window.process = window.process || {};
+        window.process.env = window.process.env || {};
     </script>
     <style>
         body { 
