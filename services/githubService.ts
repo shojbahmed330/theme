@@ -40,14 +40,14 @@ jobs:
           fi
           
           # 3. Sync web assets
-          find . -maxdepth 3 -type f \
-            -not -path '*/.*' \
-            -not -name "package*" \
-            -not -name "tsconfig*" \
-            -not -name "vite.config.ts" \
-            -not -name "capacitor.config.json" \
-            -not -path "./android/*" \
-            -not -path "./node_modules/*" \
+          find . -maxdepth 3 -type f \\
+            -not -path '*/.*' \\
+            -not -name "package*" \\
+            -not -name "tsconfig*" \\
+            -not -name "vite.config.ts" \\
+            -not -name "capacitor.config.json" \\
+            -not -path "./android/*" \\
+            -not -path "./node_modules/*" \\
             -exec cp --parents "{}" www/ ';'
           
           # 4. Setup Project
@@ -66,7 +66,7 @@ jobs:
           # 7. Add Android Platform
           npx cap add android
           
-          # 8. Gradle Fixes
+          # 8. Gradle Fixes - Explicit Echo (NO CAT/EOF)
           echo "android.enableJetifier=true" >> android/gradle.properties
           echo "android.useAndroidX=true" >> android/gradle.properties
           
@@ -74,27 +74,24 @@ jobs:
           sed -i 's/JavaVersion.VERSION_11/JavaVersion.VERSION_21/g' android/app/build.gradle
           sed -i 's/JavaVersion.VERSION_1_8/JavaVersion.VERSION_21/g' android/app/build.gradle
           
-          # Inject configurations with correct bash echo syntax
-          cat <<EOF >> android/app/build.gradle
-android {
-    packagingOptions {
-        resources {
-            pickFirst 'META-INF/kotlin-stdlib.kotlin_module'
-            pickFirst 'META-INF/kotlin-stdlib-jdk8.kotlin_module'
-            pickFirst 'META-INF/kotlin-stdlib-jdk7.kotlin_module'
-        }
-    }
-}
-
-configurations.all {
-    resolutionStrategy {
-        force 'org.jetbrains.kotlin:kotlin-stdlib:1.9.10'
-        force 'org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.10'
-        force 'org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.9.10'
-        force 'com.android.support:support-v4:28.0.0'
-    }
-}
-EOF
+          echo "android {" >> android/app/build.gradle
+          echo "    packagingOptions {" >> android/app/build.gradle
+          echo "        resources {" >> android/app/build.gradle
+          echo "            pickFirst 'META-INF/kotlin-stdlib.kotlin_module'" >> android/app/build.gradle
+          echo "            pickFirst 'META-INF/kotlin-stdlib-jdk8.kotlin_module'" >> android/app/build.gradle
+          echo "            pickFirst 'META-INF/kotlin-stdlib-jdk7.kotlin_module'" >> android/app/build.gradle
+          echo "        }" >> android/app/build.gradle
+          echo "    }" >> android/app/build.gradle
+          echo "}" >> android/app/build.gradle
+          
+          echo "configurations.all {" >> android/app/build.gradle
+          echo "    resolutionStrategy {" >> android/app/build.gradle
+          echo "        force 'org.jetbrains.kotlin:kotlin-stdlib:1.9.10'" >> android/app/build.gradle
+          echo "        force 'org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.10'" >> android/app/build.gradle
+          echo "        force 'org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.9.10'" >> android/app/build.gradle
+          echo "        force 'com.android.support:support-v4:28.0.0'" >> android/app/build.gradle
+          echo "    }" >> android/app/build.gradle
+          echo "}" >> android/app/build.gradle
 
           npx cap copy android
           
@@ -171,19 +168,18 @@ EOF
       'X-GitHub-Api-Version': '2022-11-28'
     };
 
-    // --- ABSOLUTE SANITIZATION FOR APP ID ---
-    // Remove all whitespace, special chars, and ensure at least two segments
-    let rawId = appConfig?.packageName || 'com.oneclick.studio';
+    // --- ULTRA-STRICT APP ID SANITIZATION ---
+    let rawId = (appConfig?.packageName || 'com.oneclick.studio').toString();
     let sanitizedAppId = rawId
-      .toString()
-      .replace(/\s+/g, '') // Remove all spaces
+      .trim()
       .toLowerCase()
-      .replace(/[^a-z0-9.]/g, '') // Remove non-alphanumeric except dots
-      .replace(/\.+/g, '.') // No double dots
-      .replace(/^\.|\.$/g, ''); // No leading/trailing dots
+      .replace(/[^a-z0-9.]/g, '') // Remove ANY character that isn't a-z, 0-9 or dot
+      .replace(/\.+/g, '.')       // Replace multiple dots with one
+      .replace(/^\.|\.$/g, '');   // Trim dots from both ends
 
-    if (!sanitizedAppId.includes('.')) {
-      sanitizedAppId = `com.oneclick.${sanitizedAppId}`;
+    // Ensure it has at least 2 segments
+    if (!sanitizedAppId.includes('.') || sanitizedAppId.split('.').length < 2) {
+      sanitizedAppId = `com.oneclick.${sanitizedAppId.replace('.', '')}`;
     }
 
     const capConfig = {
@@ -212,6 +208,7 @@ EOF
       const isBase64 = content.startsWith('data:image') || path.startsWith('assets/');
       const finalContent = isBase64 ? content.split(',')[1] || content : this.toBase64(content);
 
+      // 1. Get current SHA
       const getRes = await fetch(`${baseUrl}/contents/${path}`, { headers });
       let sha: string | undefined;
       if (getRes.ok) {
@@ -219,6 +216,7 @@ EOF
         sha = getData.sha;
       }
 
+      // 2. Put content (Strict Error Handling)
       const putRes = await fetch(`${baseUrl}/contents/${path}`, {
         method: 'PUT',
         headers: { ...headers, 'Content-Type': 'application/json' },
@@ -230,7 +228,9 @@ EOF
       });
 
       if (!putRes.ok) {
-          console.warn(`Could not update ${path}: ${putRes.statusText}`);
+          const errorData = await putRes.json();
+          // 409 Conflict is common if SHA is mismatched, try one more time if it's a critical file
+          throw new Error(`Failed to update ${path}: ${errorData.message}`);
       }
     }
   }
