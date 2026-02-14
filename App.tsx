@@ -129,12 +129,21 @@ const App: React.FC = () => {
 
   const handleClearGithubConfig = async () => {
     if (!user) return;
-    if (!window.confirm("আপনি কি নিশ্চিতভাবে গিটহাব ডিসকানেক্ট করতে চান?")) return;
+    if (!window.confirm("আপনি কি নিশ্চিতভাবে গিটহাব ডিসকানেক্ট করতে চান? এটি আপনার সুপাবেজ আইডি থেকেও আনলিঙ্ক করে দেবে।")) return;
     
-    const emptyConfig = { token: '', owner: '', repo: '' };
-    setGithubConfig(emptyConfig);
-    await db.updateGithubConfig(user.id, emptyConfig);
-    alert("GitHub Disconnected Successfully.");
+    try {
+      // 1. Unlink from Supabase Auth internal system
+      await db.unlinkGithubIdentity();
+      
+      // 2. Clear from our custom users table
+      const emptyConfig = { token: '', owner: '', repo: '' };
+      setGithubConfig(emptyConfig);
+      await db.updateGithubConfig(user.id, emptyConfig);
+      
+      alert("GitHub Disconnected and Unlinked successfully.");
+    } catch (e: any) {
+      alert("Unlink failed: " + e.message);
+    }
   };
 
   const handlePaymentScreenshotUpload = () => {

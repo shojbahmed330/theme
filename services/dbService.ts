@@ -116,8 +116,6 @@ export class DatabaseService {
       throw new Error("আপনার সেশন পাওয়া যাচ্ছে না। দয়া করে আবার লগইন করুন।");
     }
 
-    console.log("Linking GitHub for session user:", session.user.email);
-    
     const { data, error } = await this.supabase.auth.linkIdentity({
       provider: 'github',
       options: {
@@ -127,8 +125,6 @@ export class DatabaseService {
     });
 
     if (error) {
-      console.error("Link Identity Error:", error);
-      // specific check for manual linking disabled
       if (error.message.includes('Manual linking is disabled')) {
         throw new Error("ম্যানুয়াল লিঙ্ক অপশনটি সুপাবেজে বন্ধ করা আছে। বিকল্প হিসেবে সরাসরি গিটহাব সাইন-ইন বা ম্যানুয়াল টোকেন ব্যবহার করুন।");
       }
@@ -136,6 +132,18 @@ export class DatabaseService {
     }
     
     return data;
+  }
+
+  async unlinkGithubIdentity() {
+    const { data: { user } } = await this.supabase.auth.getUser();
+    if (!user) return;
+    
+    // Find the github identity from the identities array
+    const githubIdentity = user.identities?.find(id => id.provider === 'github');
+    if (githubIdentity) {
+      const { error } = await this.supabase.auth.unlinkIdentity(githubIdentity);
+      if (error) throw error;
+    }
   }
 
   async getProjects(userId: string): Promise<Project[]> {
