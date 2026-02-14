@@ -27,7 +27,6 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
     owner: '' 
   });
 
-  // Sync githubConfig with user object whenever user changes
   useEffect(() => {
     if (user) {
       setGithubConfig({
@@ -82,11 +81,21 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
 
     setIsGenerating(true);
     try {
-      const res = await gemini.current.generateWebsite(text, projectFiles, messages, currentImage ? { data: currentImage.data, mimeType: currentImage.mimeType } : undefined);
+      // Logic: Use Pro if tokens are above 50, otherwise Flash (as standard fallback)
+      // Also handles the auto-fallback if Pro fails within geminiService
+      const usePro = user ? user.tokens > 50 : false;
+
+      const res = await gemini.current.generateWebsite(
+        text, 
+        projectFiles, 
+        messages, 
+        currentImage ? { data: currentImage.data, mimeType: currentImage.mimeType } : undefined,
+        usePro
+      );
+
       if (res.files) {
         const newFiles = { ...projectFiles, ...res.files };
         setProjectFiles(newFiles);
-        // Auto-save to cloud if project exists
         if (user && currentProjectId) {
            await db.updateProject(user.id, currentProjectId, newFiles, projectConfig);
         }
@@ -128,7 +137,6 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
   };
 
   const handleBuildAPK = async (navigateToProfile: () => void) => {
-    // If token is missing, the build engine cannot work
     if (!githubConfig.token || githubConfig.token.length < 10) { 
       navigateToProfile(); 
       return; 
