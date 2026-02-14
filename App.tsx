@@ -248,6 +248,7 @@ const App: React.FC = () => {
             config={githubConfig}
             onSave={handleSaveGithubConfig}
             onBack={() => setMode(AppMode.PREVIEW)}
+            onDisconnect={handleClearGithubConfig}
           />
         ) : path === '/shop' ? (
           <ShopView 

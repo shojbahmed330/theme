@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Github, Key, User, Folder, Save, ArrowLeft, ShieldCheck, Zap, Info, AlertCircle } from 'lucide-react';
+import { Github, Key, User, Folder, Save, ArrowLeft, ShieldCheck, Zap, Info, AlertCircle, XCircle } from 'lucide-react';
 import { GithubConfig } from '../types';
 import { DatabaseService } from '../services/dbService';
 
@@ -8,9 +8,10 @@ interface GithubSettingsViewProps {
   config: GithubConfig;
   onSave: (config: GithubConfig) => void;
   onBack: () => void;
+  onDisconnect: () => void;
 }
 
-const GithubSettingsView: React.FC<GithubSettingsViewProps> = ({ config, onSave, onBack }) => {
+const GithubSettingsView: React.FC<GithubSettingsViewProps> = ({ config, onSave, onBack, onDisconnect }) => {
   const [localConfig, setLocalConfig] = useState<GithubConfig>({ ...config });
   const [isSaving, setIsSaving] = useState(false);
   const [linkingError, setLinkingError] = useState(false);
@@ -42,7 +43,7 @@ const GithubSettingsView: React.FC<GithubSettingsViewProps> = ({ config, onSave,
     }
   };
 
-  const isConnected = config.token && config.token.length > 10;
+  const isConnected = !!(config.token && config.owner);
 
   return (
     <div className="flex-1 overflow-y-auto p-6 md:p-12 bg-black animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -73,7 +74,7 @@ const GithubSettingsView: React.FC<GithubSettingsViewProps> = ({ config, onSave,
                 {isConnected ? 'Neural Link Established' : 'Neural Link Required'}
               </h3>
               <p className="text-xs text-zinc-500 font-bold uppercase tracking-widest">
-                {isConnected ? 'Cloud build engine is fully operational' : 'Connect GitHub to enable automated builds'}
+                {isConnected ? `Uplink Active: @${config.owner}` : 'Connect GitHub to enable automated builds'}
               </p>
             </div>
 
@@ -86,12 +87,23 @@ const GithubSettingsView: React.FC<GithubSettingsViewProps> = ({ config, onSave,
               </div>
             )}
 
-            <button 
-              onClick={handleOAuthConnect}
-              className={`w-full py-5 rounded-2xl font-black uppercase text-xs tracking-widest flex items-center justify-center gap-3 transition-all active:scale-95 shadow-xl ${isConnected ? 'bg-white/5 border border-white/10 text-white hover:bg-white/10' : 'bg-pink-600 text-white hover:bg-pink-500 shadow-pink-600/20'}`}
-            >
-              <Zap size={18}/> {isConnected ? 'Reconnect / Refresh Access' : 'Connect with GitHub'}
-            </button>
+            <div className="flex flex-col gap-3">
+              <button 
+                onClick={handleOAuthConnect}
+                className={`w-full py-5 rounded-2xl font-black uppercase text-xs tracking-widest flex items-center justify-center gap-3 transition-all active:scale-95 shadow-xl ${isConnected ? 'bg-white/5 border border-white/10 text-white hover:bg-white/10' : 'bg-pink-600 text-white hover:bg-pink-500 shadow-pink-600/20'}`}
+              >
+                <Zap size={18}/> {isConnected ? 'Refresh Access Link' : 'Connect with GitHub'}
+              </button>
+
+              {isConnected && (
+                <button 
+                  onClick={onDisconnect}
+                  className="w-full py-4 rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] text-red-500 hover:bg-red-500/10 transition-all flex items-center justify-center gap-2"
+                >
+                  <XCircle size={14}/> Terminate Connection
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
