@@ -24,6 +24,11 @@ const AppConfigView: React.FC<AppConfigViewProps> = ({ config, onUpdate, onBack 
     reader.readAsDataURL(file);
   };
 
+  const sanitizePackageName = (val: string) => {
+    // Android package names cannot have spaces, must be lowercase, and can't have dashes
+    return val.toLowerCase().replace(/\s+/g, '').replace(/-/g, '_').replace(/[^a-z0-9._]/g, '');
+  };
+
   return (
     <div className="flex-1 overflow-y-auto p-6 md:p-12 bg-black animate-in fade-in slide-in-from-bottom-4 duration-700 pb-32 md:pb-12">
       <div className="max-w-4xl mx-auto space-y-10">
@@ -59,7 +64,7 @@ const AppConfigView: React.FC<AppConfigViewProps> = ({ config, onUpdate, onBack 
                     <label className="text-[10px] font-black uppercase text-zinc-600 ml-4 tracking-widest">App Display Name</label>
                     <input 
                       value={config.appName} 
-                      onChange={e => onUpdate({...config, appName: e.target.value})}
+                      onChange={e => onUpdate({...config, appName: e.target.value.trim()})}
                       placeholder="e.g. My Awesome App" 
                       className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-sm text-white focus:border-pink-500/40 outline-none transition-all"
                     />
@@ -69,12 +74,12 @@ const AppConfigView: React.FC<AppConfigViewProps> = ({ config, onUpdate, onBack 
                     <label className="text-[10px] font-black uppercase text-zinc-600 ml-4 tracking-widest">Package Identifier (Unique)</label>
                     <input 
                       value={config.packageName} 
-                      onChange={e => onUpdate({...config, packageName: e.target.value})}
+                      onChange={e => onUpdate({...config, packageName: sanitizePackageName(e.target.value)})}
                       placeholder="com.company.project" 
                       className="w-full bg-white/5 border border-white/10 rounded-2xl p-5 text-sm font-mono text-pink-400 focus:border-pink-500/40 outline-none transition-all"
                     />
                     <div className="flex items-center gap-2 px-4 text-[9px] text-zinc-600 uppercase font-black">
-                      <ShieldAlert size={10}/> <span>Must be unique for Google Play Store</span>
+                      <ShieldAlert size={10}/> <span>No spaces or dashes allowed in Package ID</span>
                     </div>
                   </div>
                 </div>

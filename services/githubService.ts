@@ -92,6 +92,8 @@ jobs:
           echo "        force 'org.jetbrains.kotlin:kotlin-stdlib:1.9.10'" >> android/app/build.gradle
           echo "        force 'org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.10'" >> android/app/build.gradle
           echo "        force 'org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.9.10'" >> android/app/build.gradle
+          # Force specific version for Capacitor 7/Android 15 compatibility
+          force 'com.android.support:support-v4:28.0.0'
           echo "    }" >> android/app/build.gradle
           echo "}" >> android/app/build.gradle
 
@@ -128,19 +130,14 @@ jobs:
       'Accept': 'application/vnd.github.v3+json'
     };
 
-    // First, check if the repo already exists
-    // We need the username first
     const userRes = await fetch('https://api.github.com/user', { headers });
     if (!userRes.ok) throw new Error("GitHub Authentication failed.");
     const userData = await userRes.json();
     const username = userData.login;
 
     const checkRes = await fetch(`https://api.github.com/repos/${username}/${repoName}`, { headers });
-    if (checkRes.ok) {
-        return username; // Already exists
-    }
+    if (checkRes.ok) return username;
 
-    // Create repo
     const createRes = await fetch('https://api.github.com/user/repos', {
       method: 'POST',
       headers: { ...headers, 'Content-Type': 'application/json' },
@@ -154,7 +151,7 @@ jobs:
 
     if (!createRes.ok) {
         const errData = await createRes.json();
-        if (createRes.status === 422) return username; // Likely already exists
+        if (createRes.status === 422) return username;
         throw new Error(`Failed to create repository: ${errData.message}`);
     }
 
@@ -175,10 +172,22 @@ jobs:
       'X-GitHub-Api-Version': '2022-11-28'
     };
 
-    // Construct capacitor.config.json
+    // CRITICAL: Sanitize App ID (Package Name)
+    // No spaces, no dashes, at least two segments.
+    let sanitizedAppId = (appConfig?.packageName || 'com.oneclick.studio')
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, '') // Remove all spaces
+      .replace(/-/g, '_'); // Replace dashes with underscores
+
+    // Ensure it has at least two segments (com.example)
+    if (!sanitizedAppId.includes('.')) {
+      sanitizedAppId = `com.oneclick.${sanitizedAppId}`;
+    }
+
     const capConfig = {
-      appId: appConfig?.packageName || 'com.oneclick.studio',
-      appName: appConfig?.appName || 'OneClickApp',
+      appId: sanitizedAppId,
+      appName: (appConfig?.appName || 'OneClickApp').trim(),
       webDir: 'www',
       bundledWebRuntime: false
     };
@@ -189,7 +198,6 @@ jobs:
         'capacitor.config.json': JSON.stringify(capConfig, null, 2)
     };
 
-    // Add assets if they exist
     if (appConfig?.icon) {
       allFiles['assets/icon-only.png'] = appConfig.icon;
       allFiles['assets/icon-foreground.png'] = appConfig.icon;

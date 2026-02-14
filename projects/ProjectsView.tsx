@@ -55,10 +55,11 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({
     if (!projectNameInput.trim()) return;
     setIsProcessing(true);
     try {
+      const cleanName = projectNameInput.trim();
       if (showModal === 'save') {
-        await onSaveCurrent(projectNameInput);
+        await onSaveCurrent(cleanName);
       } else {
-        await onCreateNew(projectNameInput);
+        await onCreateNew(cleanName);
       }
       setShowModal(null);
       setProjectNameInput('');
