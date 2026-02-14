@@ -247,7 +247,7 @@ const App: React.FC = () => {
             onSaveGithubConfig={handleSaveGithubConfig} clearGithubConfig={() => {}}
           />
         ) : path === '/projects' ? (
-          <ProjectsView 
+          <ProfileView 
             userId={user.id} currentFiles={projectFiles}
             onLoadProject={(p) => { loadProject(p); navigateTo('/dashboard', AppMode.PREVIEW); }}
             onSaveCurrent={(name) => db.saveProject(user.id, name, projectFiles, projectConfig)}
@@ -262,7 +262,14 @@ const App: React.FC = () => {
             isGenerating={isGenerating} projectFiles={projectFiles} setProjectFiles={setProjectFiles}
             selectedFile={selectedFile} setSelectedFile={setSelectedFile} buildStatus={buildStatus}
             setBuildStatus={setBuildStatus} buildSteps={buildSteps} mobileTab={mobileTab} setMobileTab={setMobileTab}
-            handleSend={handleSend} handleBuildAPK={() => handleBuildAPK(() => navigateTo('/dashboard', AppMode.SETTINGS))} 
+            handleSend={handleSend} 
+            handleBuildAPK={() => {
+              handleBuildAPK(() => navigateTo('/dashboard', AppMode.SETTINGS));
+              // Switch to EDIT mode to see the console if configuration is valid
+              if (githubConfig.token && githubConfig.token.length > 10) {
+                setMode(AppMode.EDIT);
+              }
+            }} 
             handleSecureDownload={handleSecureDownload} isDownloading={isDownloading}
             selectedImage={selectedImage} setSelectedImage={setSelectedImage}
             handleImageSelect={handleImageSelect}
