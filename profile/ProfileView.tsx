@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { LogOut, Loader2 } from 'lucide-react';
+import { LogOut, Loader2, AlertCircle, Key, Github } from 'lucide-react';
 import { User as UserType, Transaction, GithubConfig } from '../types.ts';
 import { DatabaseService } from '../services/dbService.ts';
 import { GithubService } from '../services/githubService.ts';
@@ -34,6 +34,7 @@ const ProfileView: React.FC<ProfileViewProps> = (props) => {
   const [repoLoading, setRepoLoading] = useState(false);
   const [isLinking, setIsLinking] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [linkingError, setLinkingError] = useState<string | null>(null);
   
   const isConnected = !!(props.githubConfig.token && props.githubConfig.owner);
   const db = DatabaseService.getInstance();
@@ -53,11 +54,16 @@ const ProfileView: React.FC<ProfileViewProps> = (props) => {
 
   const handleConnectGithub = async () => {
     setIsLinking(true);
+    setLinkingError(null);
     try { 
       await db.linkGithubIdentity(); 
     } catch (e: any) { 
-      alert(e.message || "গিটহাব কানেক্ট করতে সমস্যা হচ্ছে।"); 
       setIsLinking(false);
+      if (e.message.includes('Manual linking is disabled')) {
+        setLinkingError("Manual Account Linking বন্ধ করা আছে।");
+      } else {
+        alert(e.message || "গিটহাব কানেক্ট করতে সমস্যা হচ্ছে।"); 
+      }
     }
   };
 
@@ -77,6 +83,29 @@ const ProfileView: React.FC<ProfileViewProps> = (props) => {
                 </div>
               </div>
             )}
+
+            {linkingError && (
+              <div className="p-8 bg-amber-500/10 border border-amber-500/20 rounded-[2.5rem] mb-6 flex flex-col items-center text-center gap-4 animate-in zoom-in">
+                 <AlertCircle size={40} className="text-amber-500"/>
+                 <h4 className="text-xl font-black text-white uppercase">Manual Linking Disabled</h4>
+                 <p className="text-xs text-slate-400 max-w-sm leading-relaxed">আপনার সুপাবেজ প্রজেক্টে ম্যানুয়াল অ্যাকাউন্ট লিঙ্কিং বন্ধ করা আছে। অটোমেটিক বিল্ডের জন্য সরাসরি গিটহাব টোকেন বসান।</p>
+                 <div className="flex gap-3">
+                   <button 
+                    onClick={() => setLinkingError(null)} 
+                    className="px-6 py-3 bg-white/5 rounded-2xl text-[10px] font-black uppercase"
+                   >
+                     Cancel
+                   </button>
+                   <button 
+                    onClick={() => window.open('https://github.com/settings/tokens', '_blank')}
+                    className="px-6 py-3 bg-amber-600 rounded-2xl text-[10px] font-black uppercase text-white flex items-center gap-2"
+                   >
+                     <Key size={14}/> Get Token
+                   </button>
+                 </div>
+              </div>
+            )}
+
             <GithubConnector 
               githubConfig={props.githubConfig} isConnected={isConnected} 
               repoLoading={repoLoading} searchQuery={searchQuery} 

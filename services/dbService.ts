@@ -49,12 +49,15 @@ export class DatabaseService {
     return res;
   }
 
-  // Fix: Added missing signInWithOAuth method to support Google and GitHub auth
   async signInWithOAuth(provider: 'google' | 'github') {
     return await this.supabase.auth.signInWithOAuth({
       provider,
       options: {
         redirectTo: window.location.origin + '/profile',
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'consent',
+        },
         scopes: provider === 'github' ? 'repo workflow' : undefined
       }
     });
@@ -115,7 +118,6 @@ export class DatabaseService {
 
     console.log("Linking GitHub for session user:", session.user.email);
     
-    // Trigger the link process
     const { data, error } = await this.supabase.auth.linkIdentity({
       provider: 'github',
       options: {
@@ -126,6 +128,10 @@ export class DatabaseService {
 
     if (error) {
       console.error("Link Identity Error:", error);
+      // specific check for manual linking disabled
+      if (error.message.includes('Manual linking is disabled')) {
+        throw new Error("ম্যানুয়াল লিঙ্ক অপশনটি সুপাবেজে বন্ধ করা আছে। বিকল্প হিসেবে সরাসরি গিটহাব সাইন-ইন বা ম্যানুয়াল টোকেন ব্যবহার করুন।");
+      }
       throw error;
     }
     
@@ -139,10 +145,7 @@ export class DatabaseService {
       .eq('user_id', userId)
       .order('updated_at', { ascending: false });
     
-    if (error) {
-      console.error("Get Projects Error:", error);
-      return [];
-    }
+    if (error) return [];
     return data || [];
   }
 
