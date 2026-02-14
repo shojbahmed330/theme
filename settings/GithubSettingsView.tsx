@@ -105,7 +105,7 @@ const GithubSettingsView: React.FC<GithubSettingsViewProps> = ({ config, onSave,
           <div className="space-y-4">
             <div className="p-4 bg-pink-500/5 border border-pink-500/10 rounded-2xl">
               <p className="text-[9px] font-black text-pink-500 uppercase leading-relaxed">
-                ১. GitHub -> Settings -> Developer Settings -> Personal Access Tokens (Classic) এ যান।<br/>
+                ১. GitHub &rarr; Settings &rarr; Developer Settings &rarr; Personal Access Tokens (Classic) এ যান।<br/>
                 ২. "repo" এবং "workflow" পারমিশন দিয়ে টোকেন তৈরি করুন।<br/>
                 ৩. সেই টোকেনটি নিচের বক্সে পেস্ট করে সেভ করুন।
               </p>
