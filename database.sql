@@ -31,15 +31,36 @@ CREATE TABLE IF NOT EXISTS public.users (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc', now()) NOT NULL
 );
 
--- CRITICAL FIX: Add columns if they were missing from a previous table version
+-- PROJECTS TABLE
+CREATE TABLE IF NOT EXISTS public.projects (
+  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id uuid REFERENCES public.users(id) ON DELETE CASCADE NOT NULL,
+  name TEXT NOT NULL,
+  files JSONB DEFAULT '{}'::jsonb,
+  config JSONB DEFAULT '{}'::jsonb,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc', now()) NOT NULL,
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc', now()) NOT NULL
+);
+
+-- CRITICAL SCHEMA MIGRATIONS (Ensure all columns exist)
 DO $$ 
 BEGIN 
+  -- Fix for Users table
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='is_admin') THEN
     ALTER TABLE public.users ADD COLUMN is_admin BOOLEAN DEFAULT false;
   END IF;
   
   IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='users' AND column_name='is_verified') THEN
     ALTER TABLE public.users ADD COLUMN is_verified BOOLEAN DEFAULT false;
+  END IF;
+
+  -- Fix for Projects table (Addressing the error in user screenshot)
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='projects' AND column_name='config') THEN
+    ALTER TABLE public.projects ADD COLUMN config JSONB DEFAULT '{}'::jsonb;
+  END IF;
+
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='projects' AND column_name='files') THEN
+    ALTER TABLE public.projects ADD COLUMN files JSONB DEFAULT '{}'::jsonb;
   END IF;
 END $$;
 
@@ -67,17 +88,6 @@ CREATE TABLE IF NOT EXISTS public.transactions (
   screenshot_url TEXT,
   message TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc', now()) NOT NULL
-);
-
--- PROJECTS TABLE
-CREATE TABLE IF NOT EXISTS public.projects (
-  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id uuid REFERENCES public.users(id) ON DELETE CASCADE NOT NULL,
-  name TEXT NOT NULL,
-  files JSONB DEFAULT '{}'::jsonb,
-  config JSONB DEFAULT '{}'::jsonb,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc', now()) NOT NULL,
-  updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc', now()) NOT NULL
 );
 
 -- ACTIVITY LOGS TABLE
@@ -272,7 +282,7 @@ FOR EACH ROW EXECUTE PROCEDURE public.sync_project_time();
 -- 9. SEED DATA & INITIALIZATION
 -- ============================================================
 
--- Forcefully ensure the admin email has the role (Now safe because column is added above)
+-- Forcefully ensure the admin email has the role
 UPDATE public.users 
 SET is_admin = true, is_verified = true
 WHERE email = 'rajshahi.jibon@gmail.com';
@@ -288,7 +298,3 @@ ON CONFLICT DO NOTHING;
 -- Log System Bootup
 INSERT INTO activity_logs (admin_email, action, details)
 VALUES ('SYSTEM', 'BOOT_COMPLETE', 'OneClick Studio Core Database Initialized Successfully');
-
--- ============================================================
--- END OF SQL SCHEMA
--- ============================================================

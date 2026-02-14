@@ -23,7 +23,6 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   
-  // Fix: Removed incorrect window.React prefix as useState is directly imported
   const [showModal, setShowModal] = useState<'save' | 'new' | null>(null);
   const [projectNameInput, setProjectNameInput] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
@@ -64,8 +63,15 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({
       setShowModal(null);
       setProjectNameInput('');
       await fetchProjects();
+      alert("প্রজেক্ট সফলভাবে সেভ করা হয়েছে।");
     } catch (e: any) {
-      alert(e.message || "অ্যাকশন সম্পন্ন করতে সমস্যা হয়েছে।");
+      console.error("Project Action Error:", e);
+      const errorMsg = e.message || "অ্যাকশন সম্পন্ন করতে সমস্যা হয়েছে।";
+      if (errorMsg.includes('column "config" of relation "projects" does not exist')) {
+        alert("ডাটাবেসে 'config' কলামটি নেই। দয়া করে Supabase SQL Editor এ গিয়ে database.sql এর কোডটি রান করুন।");
+      } else {
+        alert("ভুল: " + errorMsg);
+      }
     } finally {
       setIsProcessing(false);
     }
