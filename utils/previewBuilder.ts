@@ -64,42 +64,61 @@ export const buildFinalHtml = (projectFiles: Record<string, string>) => {
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     ${tailwindCdn}
     <style>
-      /* Mobile App Reset */
+      /* Mobile App Reset & Safe Area Handling */
       * { 
         box-sizing: border-box; 
         -webkit-tap-highlight-color: transparent;
       }
       
+      :root {
+        --safe-top: env(safe-area-inset-top);
+        --safe-bottom: env(safe-area-inset-bottom);
+        --safe-left: env(safe-area-inset-left);
+        --safe-right: env(safe-area-inset-right);
+      }
+
       html, body {
-        height: 100%;
-        width: 100%;
+        height: 100dvh;
+        width: 100vw;
         margin: 0;
         padding: 0;
-        overflow: hidden; /* Prevent body scroll to keep it app-like */
+        overflow: hidden;
+        background-color: #000;
       }
 
       body { 
         -ms-overflow-style: none; 
         scrollbar-width: none; 
-        background-color: #09090b; 
         color: #f4f4f5;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         display: flex;
         flex-direction: column;
+        /* Default safety padding */
+        padding-top: var(--safe-top);
+        padding-bottom: var(--safe-bottom);
       }
 
       /* Container for scrolling content if needed */
-      #root, #app, .app-container {
+      #app-root, #root, #app, .app-container {
         flex: 1;
         display: flex;
         flex-direction: column;
         height: 100%;
         overflow-y: auto;
         overflow-x: hidden;
+        position: relative;
       }
 
       ::-webkit-scrollbar { display: none; }
       
+      /* Utility for full screen layouts */
+      .full-screen {
+        height: 100%;
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+      }
+
       ${cssContent}
     </style>
     ${polyfill}
@@ -115,7 +134,7 @@ export const buildFinalHtml = (projectFiles: Record<string, string>) => {
         ${headInjection}
       </head>
       <body>
-        <div id="app-root" style="height: 100%; display: flex; flex-direction: column;">
+        <div id="app-root">
           ${processedHtml}
         </div>
         ${finalScript}
