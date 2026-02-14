@@ -81,9 +81,8 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
 
     setIsGenerating(true);
     try {
-      // Logic: Use Pro if tokens are above 50, otherwise Flash (as standard fallback)
-      // Also handles the auto-fallback if Pro fails within geminiService
-      const usePro = user ? user.tokens > 50 : false;
+      // Prioritize Flash for Free Tier stability, use Pro only for complex logic
+      const usePro = user ? user.tokens > 100 : false;
 
       const res = await gemini.current.generateWebsite(
         text, 
@@ -113,8 +112,14 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
         const updated = await db.useToken(user.id, user.email); 
         if (updated) setUser(updated); 
       }
-    } catch (e) { 
-      setMessages(prev => [...prev, { id: Date.now().toString(), role: 'assistant', content: "Error during generation process." }]); 
+    } catch (e: any) { 
+      console.error("Neural Engine Error:", e);
+      setMessages(prev => [...prev, { 
+        id: Date.now().toString(), 
+        role: 'assistant', 
+        content: `Error: ${e.message || "Generation process failed. Please check your API key or connection."}`,
+        timestamp: Date.now()
+      }]); 
     } finally { 
       setIsGenerating(false); 
     }

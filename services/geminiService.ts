@@ -42,18 +42,20 @@ export class GeminiService {
     currentFiles: Record<string, string> = {}, 
     history: ChatMessage[] = [],
     image?: { data: string; mimeType: string },
-    usePro: boolean = true
+    usePro: boolean = false
   ): Promise<GenerationResult> {
-    // Dynamic initialization inside the method to ensure we get the latest process.env
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const apiKey = process.env.API_KEY;
+    if (!apiKey) throw new Error("API Key missing. Please check your environment configuration.");
+
+    const ai = new GoogleGenAI({ apiKey });
     
-    // Choose model based on premium status or availability
+    // Default to Flash for speed and reliability, use Pro only when requested or needed
     const modelName = usePro ? 'gemini-3-pro-preview' : 'gemini-3-flash-preview';
 
     const parts: any[] = [
       { text: `User Prompt: ${prompt}` },
       { text: `Current Modular Files: ${JSON.stringify(currentFiles)}` },
-      { text: `History: ${JSON.stringify(history.slice(-15))}` }
+      { text: `History: ${JSON.stringify(history.slice(-10))}` }
     ];
 
     if (image) {
@@ -75,22 +77,30 @@ export class GeminiService {
         }
       });
       
-      const text = response.text || '{}';
+      const text = response.text;
+      if (!text) throw new Error("Empty response from AI.");
+
       try {
         return JSON.parse(text);
       } catch (e) {
-        // Handle cases where model returns text around JSON
         const jsonMatch = text.match(/\{[\s\S]*\}/);
         if (jsonMatch) return JSON.parse(jsonMatch[0]);
-        throw new Error("Invalid JSON response from AI");
+        throw new Error("Failed to parse AI response as JSON.");
       }
     } catch (error: any) {
-      console.error(`Gemini Error (${modelName}):`, error);
+      console.error(`Gemini Service Error (${modelName}):`, error);
       
-      // Fallback logic for various API issues
-      if (usePro) {
-        console.warn("Attempting fallback to Gemini 3 Flash...");
+      // Auto-fallback if Pro fails
+      if (usePro && !error.message.includes('API_KEY_INVALID')) {
+        console.warn("Retrying with Flash fallback...");
         return this.generateWebsite(prompt, currentFiles, history, image, false);
+      }
+      
+      // Handle common status errors
+      if (error.message.includes('401') || error.message.includes('API_KEY_INVALID')) {
+        throw new Error("Invalid API Key. Please update it in your settings.");
+      } else if (error.message.includes('429')) {
+        throw new Error("Quota exceeded. Please wait a moment or upgrade your plan.");
       }
       
       throw error;
