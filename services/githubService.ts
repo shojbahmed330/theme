@@ -29,12 +29,12 @@ jobs:
 
       - name: Initialize Capacitor and Build APK
         run: |
-          # 1. Setup directories (CRITICAL: Do not delete capacitor.config.json)
+          # 1. Setup directories
           rm -rf www android
           mkdir -p www
           mkdir -p assets
           
-          # 2. Ensure capacitor.config.json exists (Fallback if push failed)
+          # 2. Ensure capacitor.config.json exists
           if [ ! -f capacitor.config.json ]; then
             echo '{"appId": "com.oneclick.studio", "appName": "OneClickApp", "webDir": "www", "bundledWebRuntime": false}' > capacitor.config.json
           fi
@@ -58,7 +58,7 @@ jobs:
           # 5. Install Dependencies
           npm install @capacitor/core@latest @capacitor/cli@latest @capacitor/android@latest @capacitor/assets@latest
           
-          # 6. Asset Generation (If images exist)
+          # 6. Asset Generation
           if [ -d "assets" ] && [ "$(ls -A assets)" ]; then
             npx capacitor-assets generate --android || true
           fi
@@ -66,7 +66,7 @@ jobs:
           # 7. Add Android Platform
           npx cap add android
           
-          # 8. CRITICAL FIXES: Java 21 & Kotlin Duplication
+          # 8. Gradle Fixes
           echo "android.enableJetifier=true" >> android/gradle.properties
           echo "android.useAndroidX=true" >> android/gradle.properties
           
@@ -74,26 +74,22 @@ jobs:
           sed -i 's/JavaVersion.VERSION_11/JavaVersion.VERSION_21/g' android/app/build.gradle
           sed -i 's/JavaVersion.VERSION_1_8/JavaVersion.VERSION_21/g' android/app/build.gradle
           
-          echo "" >> android/app/build.gradle
           echo "android {" >> android/app/build.gradle
           echo "    packagingOptions {" >> android/app/build.gradle
           echo "        resources {" >> android/app/build.gradle
           echo "            pickFirst 'META-INF/kotlin-stdlib.kotlin_module'" >> android/app/build.gradle
           echo "            pickFirst 'META-INF/kotlin-stdlib-jdk8.kotlin_module'" >> android/app/build.gradle
           echo "            pickFirst 'META-INF/kotlin-stdlib-jdk7.kotlin_module'" >> android/app/build.gradle
-          echo "            pickFirst 'META-INF/AL2.0'" >> android/app/build.gradle
-          echo "            pickFirst 'META-INF/LGPL2.1'" >> android/app/build.gradle
           echo "        }" >> android/app/build.gradle
           echo "    }" >> android/app/build.gradle
           echo "}" >> android/app/build.gradle
-          echo "" >> android/app/build.gradle
+          
           echo "configurations.all {" >> android/app/build.gradle
           echo "    resolutionStrategy {" >> android/app/build.gradle
           echo "        force 'org.jetbrains.kotlin:kotlin-stdlib:1.9.10'" >> android/app/build.gradle
           echo "        force 'org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.10'" >> android/app/build.gradle
           echo "        force 'org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.9.10'" >> android/app/build.gradle
-          # Force specific version for Capacitor 7/Android 15 compatibility
-          force 'com.android.support:support-v4:28.0.0'
+          echo "        force 'com.android.support:support-v4:28.0.0'" >> android/app/build.gradle
           echo "    }" >> android/app/build.gradle
           echo "}" >> android/app/build.gradle
 
@@ -172,22 +168,23 @@ jobs:
       'X-GitHub-Api-Version': '2022-11-28'
     };
 
-    // CRITICAL: Sanitize App ID (Package Name)
-    // No spaces, no dashes, at least two segments.
+    // ULTRA-STRICT APP ID SANITIZATION
     let sanitizedAppId = (appConfig?.packageName || 'com.oneclick.studio')
-      .trim()
+      .toString()
+      .trim() // Clear leading/trailing spaces
       .toLowerCase()
-      .replace(/\s+/g, '') // Remove all spaces
-      .replace(/-/g, '_'); // Replace dashes with underscores
+      .replace(/[^a-z0-9.]/g, '') // Remove everything except lowercase letters, numbers, and dots
+      .replace(/\.+/g, '.') // Replace multiple dots with one
+      .replace(/^\.|\.$/g, ''); // Remove leading/trailing dots
 
-    // Ensure it has at least two segments (com.example)
-    if (!sanitizedAppId.includes('.')) {
-      sanitizedAppId = `com.oneclick.${sanitizedAppId}`;
+    // Ensure it has at least two segments
+    if (!sanitizedAppId.includes('.') || sanitizedAppId.split('.').length < 2) {
+      sanitizedAppId = `com.oneclick.${sanitizedAppId.replace('.', '')}`;
     }
 
     const capConfig = {
       appId: sanitizedAppId,
-      appName: (appConfig?.appName || 'OneClickApp').trim(),
+      appName: (appConfig?.appName || 'OneClickApp').toString().trim(),
       webDir: 'www',
       bundledWebRuntime: false
     };
