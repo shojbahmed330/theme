@@ -247,7 +247,7 @@ const App: React.FC = () => {
             onSaveGithubConfig={handleSaveGithubConfig} clearGithubConfig={() => {}}
           />
         ) : path === '/projects' ? (
-          <ProfileView 
+          <ProjectsView 
             userId={user.id} currentFiles={projectFiles}
             onLoadProject={(p) => { loadProject(p); navigateTo('/dashboard', AppMode.PREVIEW); }}
             onSaveCurrent={(name) => db.saveProject(user.id, name, projectFiles, projectConfig)}

@@ -117,13 +117,16 @@ export class DatabaseService {
    * Links a GitHub identity to the current user without changing the primary email
    */
   async linkGithubIdentity() {
-    return await this.supabase.auth.linkIdentity({
+    console.log("Triggering linkIdentity for GitHub...");
+    const { data, error } = await this.supabase.auth.linkIdentity({
       provider: 'github',
       options: {
         redirectTo: window.location.origin + '/profile',
         scopes: 'repo workflow'
       }
     });
+    if (error) console.error("Link Identity Error:", error);
+    return { data, error };
   }
 
   // Rest of existing methods...
