@@ -131,7 +131,6 @@ export class GeminiService {
       
       const parsed = JSON.parse(response.text);
       
-      // Convert Array of files back to Record map
       const fileMap: Record<string, string> = {};
       if (Array.isArray(parsed.files)) {
         parsed.files.forEach((f: { name: string, content: string }) => {
@@ -145,8 +144,19 @@ export class GeminiService {
         questions: parsed.questions || [],
         files: fileMap
       };
-    } catch (error) {
+    } catch (error: any) {
       console.error("Gemini Multi-Stage Error:", error);
+      
+      // Handle Rate Limit (Quota) Errors specifically
+      if (error.message?.includes("429") || error.message?.includes("RESOURCE_EXHAUSTED")) {
+        return {
+          answer: "দুঃখিত, আমাদের নিউরাল ইঞ্জিনের ওপর এই মুহূর্তে অনেক চাপ রয়েছে (Quota Limit Reached)। দয়া করে কয়েক মিনিট পর আবার চেষ্টা করুন। আপনার প্রজেক্টের বর্তমান অবস্থা সংরক্ষিত আছে।",
+          thought: "API Quota Limit (429) encountered. Instructing user to wait.",
+          files: {},
+          questions: []
+        };
+      }
+
       throw error;
     }
   }
