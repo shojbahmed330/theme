@@ -1,15 +1,50 @@
 
-import React from 'react';
-import { Sparkles, ArrowRight, Zap, Rocket, Smartphone, Github, ShieldCheck, Star, Layers, Cpu } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Sparkles, ArrowRight, Zap, Rocket, Smartphone, Github, ShieldCheck, Star, Layers, Cpu, Loader2 } from 'lucide-react';
 import { useLanguage } from '../i18n/LanguageContext';
 import LanguageSelector from '../layout/LanguageSelector';
+import { DatabaseService } from '../services/dbService';
+import { Package } from '../types';
 
 interface LandingPageProps {
   onGetStarted: () => void;
 }
 
+const IconMap: Record<string, any> = {
+  'Package': Layers,
+  'Rocket': Rocket,
+  'Cpu': Cpu,
+  'Zap': Zap,
+  'Layers': Layers
+};
+
+const ColorMap: Record<string, { text: string, bg: string, btn: string }> = {
+  'cyan': { text: 'text-cyan-500', bg: 'bg-cyan-500/10', btn: 'hover:bg-cyan-600' },
+  'pink': { text: 'text-pink-500', bg: 'bg-pink-500/10', btn: 'hover:bg-pink-600' },
+  'amber': { text: 'text-amber-500', bg: 'bg-amber-500/10', btn: 'hover:bg-amber-600' },
+  'purple': { text: 'text-purple-500', bg: 'bg-purple-500/10', btn: 'hover:bg-purple-600' },
+  'blue': { text: 'text-blue-500', bg: 'bg-blue-500/10', btn: 'hover:bg-blue-600' }
+};
+
 const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
   const { t } = useLanguage();
+  const [packages, setPackages] = useState<Package[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchPackages = async () => {
+      try {
+        const db = DatabaseService.getInstance();
+        const data = await db.getPackages();
+        setPackages(data);
+      } catch (error) {
+        console.error("Failed to fetch packages for landing page:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchPackages();
+  }, []);
 
   return (
     <div className="min-h-screen bg-[#09090b] text-white selection:bg-pink-500/30 overflow-x-hidden">
@@ -112,22 +147,30 @@ const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted }) => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-             {[
-               { name: "Starter", price: "500", tokens: "50", color: "text-cyan-500", bg: "bg-cyan-500/10" },
-               { name: "Professional", price: "1500", tokens: "250", color: "text-pink-500", bg: "bg-pink-500/10", popular: true },
-               { name: "Agency", price: "5000", tokens: "1200", color: "text-amber-500", bg: "bg-amber-500/10" }
-             ].map((pkg, i) => (
-               <div key={i} className={`glass-tech p-10 rounded-[3rem] border-white/5 text-center relative group overflow-hidden ${pkg.popular ? 'border-pink-500/30 ring-1 ring-pink-500/20 scale-105 z-10' : ''}`}>
-                  {pkg.popular && <div className="absolute top-0 left-0 right-0 py-2 bg-pink-600 text-[8px] font-black uppercase tracking-[0.5em]">Most Popular</div>}
-                  <div className={`w-14 h-14 ${pkg.bg} ${pkg.color} rounded-2xl flex items-center justify-center mx-auto mb-6`}>
-                    <Layers size={28}/>
-                  </div>
-                  <h4 className="text-xl font-black uppercase mb-2">{pkg.name}</h4>
-                  <div className="text-4xl font-black mb-4 tracking-tighter">৳{pkg.price}</div>
-                  <div className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-8">{pkg.tokens} Engineering Units</div>
-                  <button onClick={onGetStarted} className="w-full py-4 bg-white/5 border border-white/10 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-pink-600 hover:text-white transition-all">Secure Buy</button>
-               </div>
-             ))}
+             {loading ? (
+                <div className="col-span-full py-20 flex flex-col items-center gap-4">
+                   <Loader2 className="animate-spin text-pink-500" size={40}/>
+                   <span className="text-[10px] font-black uppercase tracking-widest text-zinc-600">Synchronizing Plans...</span>
+                </div>
+             ) : (
+                packages.map((pkg, i) => {
+                  const colors = ColorMap[pkg.color as keyof typeof ColorMap] || ColorMap.pink;
+                  const Icon = IconMap[pkg.icon] || Layers;
+                  
+                  return (
+                    <div key={pkg.id} className={`glass-tech p-10 rounded-[3rem] border-white/5 text-center relative group overflow-hidden transition-all hover:scale-[1.02] ${pkg.is_popular ? 'border-pink-500/30 ring-1 ring-pink-500/20 scale-105 z-10' : ''}`}>
+                        {pkg.is_popular && <div className="absolute top-0 left-0 right-0 py-2 bg-pink-600 text-[8px] font-black uppercase tracking-[0.5em]">Most Popular</div>}
+                        <div className={`w-14 h-14 ${colors.bg} ${colors.text} rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-inner`}>
+                          <Icon size={28}/>
+                        </div>
+                        <h4 className="text-xl font-black uppercase mb-2 line-clamp-1">{pkg.name}</h4>
+                        <div className="text-4xl font-black mb-4 tracking-tighter">৳{pkg.price}</div>
+                        <div className="text-[10px] font-bold text-zinc-600 uppercase tracking-widest mb-8">{pkg.tokens} Engineering Units</div>
+                        <button onClick={onGetStarted} className={`w-full py-4 bg-white/5 border border-white/10 rounded-2xl font-black text-[10px] uppercase tracking-widest ${colors.btn} hover:text-white transition-all active:scale-95`}>Secure Buy</button>
+                    </div>
+                  );
+                })
+             )}
           </div>
         </div>
       </section>
