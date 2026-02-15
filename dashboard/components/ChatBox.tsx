@@ -67,13 +67,13 @@ const Questionnaire: React.FC<{
   };
 
   return (
-    <div className="w-full bg-[#121214] border border-white/5 rounded-3xl overflow-hidden shadow-2xl animate-in zoom-in duration-300 my-4">
-      <div className="p-4 border-b border-white/5 bg-white/5 flex items-center justify-between">
+    <div className="w-full bg-[#121214] border border-white/5 rounded-3xl overflow-hidden shadow-2xl animate-in zoom-in duration-300 my-4 max-h-[80vh] flex flex-col">
+      <div className="p-4 border-b border-white/5 bg-white/5 flex items-center justify-between shrink-0">
         <span className="text-[10px] font-black uppercase tracking-[0.2em] text-pink-500">System Clarification</span>
         <span className="text-[9px] font-bold text-zinc-600">Step {currentIdx + 1} of {questions.length}</span>
       </div>
       
-      <div className="p-6 space-y-6">
+      <div className="p-6 space-y-6 overflow-y-auto custom-scrollbar flex-1 min-h-0">
         <div className="flex flex-col gap-2">
           <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">
             {q.type === 'single' ? 'Pick one option' : 'Multiple choices allowed'}
@@ -114,7 +114,7 @@ const Questionnaire: React.FC<{
         </div>
       </div>
 
-      <div className="p-4 bg-black/40 border-t border-white/5 flex items-center justify-between px-6">
+      <div className="p-4 bg-black/40 border-t border-white/5 flex items-center justify-between px-6 shrink-0">
         <div className="flex gap-1.5">
           <button 
             disabled={currentIdx === 0}

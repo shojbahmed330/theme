@@ -117,10 +117,12 @@ const MobilePreview: React.FC<MobilePreviewProps> = ({
                     <div className="absolute inset-0 bg-pink-500/10 blur-3xl rounded-full animate-pulse"></div>
                     <Cpu size={48} className="text-pink-500 relative z-10 animate-pulse" />
                  </div>
-                 <div className="space-y-2">
-                    <h2 className="text-xs font-black text-zinc-600 tracking-[0.4em] uppercase">OneClick Studio</h2>
-                    <p className="text-[10px] font-black text-zinc-700 uppercase tracking-widest leading-relaxed">
-                      Awaiting Neural Uplink...
+                 <div className="space-y-3 px-4">
+                    <h2 className="text-sm font-black tracking-[0.3em] uppercase bg-clip-text text-transparent bg-gradient-to-r from-pink-500 via-purple-500 to-cyan-500 animate-[shine_3s_linear_infinite] bg-[length:200%_auto] drop-shadow-[0_0_15px_rgba(236,72,153,0.3)]">
+                      OneClick Studio
+                    </h2>
+                    <p className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] leading-relaxed animate-pulse">
+                      Waiting for map specifications...
                     </p>
                  </div>
               </div>
