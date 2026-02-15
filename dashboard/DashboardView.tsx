@@ -111,9 +111,9 @@ const DashboardView: React.FC<DashboardViewProps> = (props) => {
   }
 
   return (
-    <div className="flex-1 flex flex-col md:flex-row overflow-hidden animate-in fade-in duration-500 bg-[#09090b]">
+    <div className="flex-1 flex flex-col md:flex-row overflow-y-auto md:overflow-hidden animate-in fade-in duration-500 bg-[#09090b]">
       {props.buildStatus.status === 'idle' ? (
-        <div className="flex-1 flex overflow-hidden">
+        <div className="flex-1 flex flex-col md:flex-row min-h-0 overflow-y-auto md:overflow-hidden">
           <CodeEditor 
             projectFiles={props.projectFiles} setProjectFiles={props.setProjectFiles} 
             selectedFile={props.selectedFile} setSelectedFile={props.setSelectedFile} 
@@ -124,7 +124,7 @@ const DashboardView: React.FC<DashboardViewProps> = (props) => {
       ) : (
         <BuildStatusDisplay 
           status={props.buildStatus.status} message={props.buildStatus.message}
-          apkUrl={props.buildStatus.apkUrl} buildSteps={props.buildSteps}
+          apkUrl={props.buildStatus.apkUrl} webUrl={props.buildStatus.webUrl} buildSteps={props.buildSteps}
           handleSecureDownload={props.handleSecureDownload}
           resetBuild={() => props.setBuildStatus({ status: 'idle', message: '' })}
         />

@@ -16,7 +16,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
 }) => {
   return (
     <>
-      <aside className="w-full md:w-64 border-r border-white/5 bg-black/20 p-4 space-y-2 overflow-y-auto">
+      <aside className="w-full md:w-64 border-r border-white/5 bg-black/20 p-4 space-y-2 overflow-y-auto max-h-[250px] md:max-h-none shrink-0 custom-scrollbar">
          <h3 className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-600 mb-4 px-2">Project Terminal</h3>
          {Object.keys(projectFiles).map(file => (
            <button key={file} onClick={() => setSelectedFile(file)} className={`w-full flex items-center gap-3 px-4 py-3 rounded-2xl text-xs font-bold transition-all duration-300 ${selectedFile === file ? 'bg-pink-600 text-white shadow-lg shadow-pink-600/10 scale-[1.02]' : 'text-zinc-500 hover:bg-white/5'}`}>
@@ -24,7 +24,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
            </button>
          ))}
       </aside>
-      <main className="flex-1 bg-[#0c0c0e] p-4 overflow-hidden flex flex-col">
+      <main className="flex-1 bg-[#0c0c0e] p-4 flex flex-col min-h-[500px] md:min-h-0 overflow-hidden">
          <div className="flex items-center justify-between mb-4 px-2">
             <div className="flex items-center gap-4">
               <div className="px-4 py-1.5 bg-black/40 rounded-xl border border-white/5">
@@ -43,7 +43,7 @@ const CodeEditor: React.FC<CodeEditorProps> = ({
               <Rocket size={14}/> Run Cloud Build
             </button>
          </div>
-         <div className="flex-1 w-full bg-black/40 border border-white/5 rounded-3xl overflow-hidden shadow-inner flex flex-col relative">
+         <div className="flex-1 w-full bg-black/40 border border-white/5 rounded-3xl overflow-hidden shadow-inner flex flex-col relative h-[400px] md:h-auto">
             <textarea 
               value={projectFiles[selectedFile]} 
               onChange={e => setProjectFiles(prev => ({...prev, [selectedFile]: e.target.value}))} 
