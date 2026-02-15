@@ -67,13 +67,13 @@ const Questionnaire: React.FC<{
   };
 
   return (
-    <div className="w-full bg-[#121214] border border-white/5 rounded-3xl overflow-hidden shadow-2xl animate-in zoom-in duration-300 my-4 max-h-[80vh] flex flex-col">
+    <div className="w-full bg-[#121214] border border-white/5 rounded-3xl overflow-hidden shadow-2xl animate-in zoom-in duration-300 my-4 max-h-[450px] md:max-h-[600px] flex flex-col">
       <div className="p-4 border-b border-white/5 bg-white/5 flex items-center justify-between shrink-0">
         <span className="text-[10px] font-black uppercase tracking-[0.2em] text-pink-500">System Clarification</span>
         <span className="text-[9px] font-bold text-zinc-600">Step {currentIdx + 1} of {questions.length}</span>
       </div>
       
-      <div className="p-6 space-y-6 overflow-y-auto custom-scrollbar flex-1 min-h-0">
+      <div className="p-5 space-y-5 overflow-y-auto custom-scrollbar flex-1 min-h-0">
         <div className="flex flex-col gap-2">
           <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">
             {q.type === 'single' ? 'Pick one option' : 'Multiple choices allowed'}
@@ -81,7 +81,7 @@ const Questionnaire: React.FC<{
           <h4 className="text-sm font-black text-white leading-snug tracking-tight">{q.text}</h4>
         </div>
 
-        <div className="space-y-2.5">
+        <div className="space-y-2">
           {(q.options || []).map(opt => {
             const isSelected = q.type === 'single' 
               ? answers[q.id] === opt.id 
@@ -106,7 +106,7 @@ const Questionnaire: React.FC<{
                   <div className={`text-xs font-black uppercase tracking-wide ${isSelected ? 'text-pink-500' : 'text-zinc-400'}`}>
                     {opt.label}
                   </div>
-                  {opt.subLabel && <p className="text-[10px] text-zinc-500 mt-1 leading-relaxed">{opt.subLabel}</p>}
+                  {opt.subLabel && <p className="text-[10px] text-zinc-500 mt-1 leading-relaxed line-clamp-2">{opt.subLabel}</p>}
                 </div>
               </button>
             );
@@ -177,7 +177,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({
     <section className={`w-full lg:w-[520px] border-r border-white/5 flex flex-col bg-[#09090b] h-full relative ${mobileTab === 'preview' ? 'hidden lg:flex' : 'flex'}`}>
       <div 
         ref={scrollRef}
-        className="flex-1 p-6 overflow-y-auto space-y-10 pt-24 md:pt-6 pb-40 scroll-smooth custom-scrollbar"
+        className="flex-1 p-6 overflow-y-auto space-y-10 pt-24 md:pt-6 pb-64 scroll-smooth custom-scrollbar"
       >
         {messages.length > 0 ? messages.map((m, idx) => (
           <div 
