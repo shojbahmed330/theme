@@ -125,7 +125,7 @@ const Questionnaire: React.FC<{
           </button>
           <button 
             disabled={isLast}
-            onClick={() => setCurrentIdx(prev => prev + 1)}
+            onClick={() => setCurrentIdx(prev => prev - 1)}
             className="p-2 text-zinc-600 hover:text-white disabled:opacity-20 transition-colors bg-white/5 rounded-xl border border-white/5"
           >
             <ChevronRight size={18}/>
@@ -177,7 +177,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({
     <section className={`w-full lg:w-[520px] border-r border-white/5 flex flex-col bg-[#09090b] h-full relative ${mobileTab === 'preview' ? 'hidden lg:flex' : 'flex'}`}>
       <div 
         ref={scrollRef}
-        className="flex-1 p-6 overflow-y-auto space-y-10 pt-28 md:pt-6 pb-44 scroll-smooth custom-scrollbar"
+        className="flex-1 p-6 overflow-y-auto space-y-10 pt-32 md:pt-6 pb-48 scroll-smooth custom-scrollbar"
       >
         {messages.length > 0 ? messages.map((m, idx) => (
           <div 
@@ -185,7 +185,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({
             className={`flex flex-col ${m.role === 'user' ? 'items-end' : 'items-start'} group animate-in fade-in slide-in-from-bottom-4 duration-500 fill-mode-both`}
             style={{ animationDelay: `${idx * 50}ms` }}
           >
-            <div className="flex flex-col items-start w-full">
+            <div className="flex flex-col items-start w-full max-w-full">
               {m.role === 'assistant' && (
                 <div className="flex items-center gap-2 mb-3 ml-2">
                   <div className="w-6 h-6 bg-pink-500/10 rounded-lg border border-pink-500/30 flex items-center justify-center">
@@ -196,7 +196,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({
               )}
               
               <div className={`
-                max-w-[90%] p-5 rounded-3xl text-[13px] leading-relaxed transition-all relative
+                max-w-[92%] p-5 rounded-3xl text-[13px] leading-relaxed transition-all relative break-words overflow-hidden
                 ${m.role === 'user' 
                   ? 'bg-pink-600 text-white rounded-tr-sm self-end shadow-lg shadow-pink-600/10' 
                   : 'bg-white/5 border border-white/10 rounded-tl-sm self-start text-zinc-300'}
@@ -206,7 +206,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({
                     <img src={m.image} className="w-full max-h-[300px] object-cover" alt="Uploaded UI" />
                   </div>
                 )}
-                <div className="relative z-10 whitespace-pre-wrap font-medium">
+                <div className="relative z-10 whitespace-pre-wrap font-medium break-words overflow-hidden w-full">
                   {m.content && m.content.split(/(\*\*.*?\*\*)/g).map((part, i) => 
                     part.startsWith('**') && part.endsWith('**') 
                     ? <strong key={i} className={m.role === 'user' ? 'text-white' : 'text-pink-400'} style={{fontWeight: 900}}>{part.slice(2, -2)}</strong> 
@@ -215,7 +215,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({
                 </div>
 
                 {m.answersSummary ? (
-                  <div className="mt-4 p-5 bg-white/5 border border-white/5 rounded-2xl italic text-zinc-500 text-[11px] leading-relaxed animate-in fade-in duration-700">
+                  <div className="mt-4 p-5 bg-white/5 border border-white/5 rounded-2xl italic text-zinc-500 text-[11px] leading-relaxed animate-in fade-in duration-700 break-words">
                     <div className="flex items-center gap-2 mb-1">
                        <Zap size={10} className="text-pink-500"/>
                        <span className="font-black uppercase text-[9px] tracking-widest text-pink-500">Configuration Locked</span>
@@ -271,23 +271,23 @@ const ChatBox: React.FC<ChatBoxProps> = ({
         )}
       </div>
 
-      <div className="p-8 absolute bottom-0 left-0 right-0 bg-gradient-to-t from-[#09090b] via-[#09090b]/95 to-transparent pt-20 z-[100]">
+      <div className="p-4 md:p-8 absolute bottom-0 left-0 right-0 bg-gradient-to-t from-[#09090b] via-[#09090b]/95 to-transparent pt-12 z-[100]">
         
         {selectedImage && (
-          <div className="mb-5 animate-in slide-in-from-bottom-4 duration-500">
-            <div className="relative w-28 h-28 rounded-3xl overflow-hidden border-2 border-pink-500/50 shadow-xl group">
+          <div className="mb-3 animate-in slide-in-from-bottom-4 duration-500">
+            <div className="relative w-24 h-24 rounded-2xl overflow-hidden border-2 border-pink-500/50 shadow-xl group">
               <img src={selectedImage.preview} className="w-full h-full object-cover" />
               <button 
                 onClick={() => setSelectedImage(null)}
-                className="absolute top-2 right-2 p-1.5 bg-red-600 text-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
+                className="absolute top-2 right-2 p-1 bg-red-600 text-white rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity"
               >
-                <X size={14}/>
+                <X size={12}/>
               </button>
             </div>
           </div>
         )}
 
-        <div className="relative bg-black/40 backdrop-blur-3xl border border-white/10 rounded-[2rem] p-3 flex items-center gap-3 mb-6 md:mb-0 shadow-2xl focus-within:border-pink-500/40 transition-all">
+        <div className="relative bg-black/40 backdrop-blur-3xl border border-white/10 rounded-[2rem] p-2 md:p-3 flex items-center gap-2 md:gap-3 mb-20 md:mb-0 shadow-2xl focus-within:border-pink-500/40 transition-all">
            <input 
              type="file" 
              ref={fileInputRef} 
@@ -297,9 +297,9 @@ const ChatBox: React.FC<ChatBoxProps> = ({
            />
            <button 
              onClick={() => fileInputRef.current?.click()}
-             className="w-12 h-12 text-zinc-500 hover:text-pink-500 hover:bg-white/5 rounded-2xl transition-all flex items-center justify-center"
+             className="w-10 h-10 md:w-12 md:h-12 text-zinc-500 hover:text-pink-500 hover:bg-white/5 rounded-2xl transition-all flex items-center justify-center"
            >
-             <ImageIcon size={22}/>
+             <ImageIcon size={20}/>
            </button>
            
            <textarea 
@@ -307,14 +307,14 @@ const ChatBox: React.FC<ChatBoxProps> = ({
              onChange={e => setInput(e.target.value)} 
              onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSend())} 
              placeholder="Describe your vision..." 
-             className="flex-1 bg-transparent p-3 text-sm h-14 outline-none text-white resize-none placeholder:text-zinc-700 font-bold" 
+             className="flex-1 bg-transparent p-2 text-[13px] h-12 outline-none text-white resize-none placeholder:text-zinc-700 font-bold" 
            />
            <button 
              onClick={() => handleSend()} 
              disabled={isGenerating || (!input.trim() && !selectedImage)} 
-             className="w-12 h-12 bg-pink-600 text-white rounded-2xl flex items-center justify-center active:scale-95 disabled:opacity-30 transition-all shadow-lg shadow-pink-600/20"
+             className="w-10 h-10 md:w-12 md:h-12 bg-pink-600 text-white rounded-2xl flex items-center justify-center active:scale-95 disabled:opacity-30 transition-all shadow-lg shadow-pink-600/20"
            >
-             <Send size={18}/>
+             <Send size={16}/>
            </button>
         </div>
       </div>

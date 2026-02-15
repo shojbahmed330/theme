@@ -58,9 +58,9 @@ const DashboardView: React.FC<DashboardViewProps> = (props) => {
           />
         </div>
 
-        {/* --- MOBILE UI CONTROLS (ABSOLUTE TOP OF WORKING AREA) --- */}
-        <div className="lg:hidden absolute top-5 left-1/2 -translate-x-1/2 z-[400] flex gap-3 items-center w-full px-6 justify-center">
-            <div className="bg-black/80 backdrop-blur-3xl p-1.5 rounded-2xl border border-white/10 flex gap-1 shadow-2xl ring-1 ring-white/5">
+        {/* --- MOBILE UI CONTROLS (FIXED IN MARKED AREA) --- */}
+        <div className="lg:hidden fixed top-[82px] left-1/2 -translate-x-1/2 z-[400] flex gap-3 items-center w-full px-6 justify-center pointer-events-none">
+            <div className="bg-black/80 backdrop-blur-3xl p-1.5 rounded-2xl border border-white/10 flex gap-1 shadow-2xl ring-1 ring-white/5 pointer-events-auto">
               <button 
                 onClick={() => props.setMobileTab('chat')} 
                 className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all duration-300 ${props.mobileTab === 'chat' ? 'bg-pink-600 text-white shadow-[0_0_20px_rgba(236,72,153,0.3)]' : 'text-zinc-500'}`}
@@ -77,7 +77,7 @@ const DashboardView: React.FC<DashboardViewProps> = (props) => {
 
             <button 
               onClick={props.handleBuildAPK}
-              className="bg-gradient-to-br from-pink-600 to-pink-700 p-3.5 rounded-2xl text-white shadow-[0_0_25px_rgba(236,72,153,0.3)] active:scale-90 transition-all border border-white/10"
+              className="bg-gradient-to-br from-pink-600 to-pink-700 p-3.5 rounded-2xl text-white shadow-[0_0_25px_rgba(236,72,153,0.3)] active:scale-90 transition-all border border-white/10 pointer-events-auto"
             >
               <Rocket size={18} />
             </button>
