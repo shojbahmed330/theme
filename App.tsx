@@ -21,6 +21,8 @@ import DashboardView from './dashboard/DashboardView.tsx';
 import ProjectsView from './projects/ProjectsView.tsx';
 import GithubSettingsView from './settings/GithubSettingsView.tsx';
 import LivePreviewView from './preview/LivePreviewView.tsx';
+import HelpCenterView from './help/HelpCenterView.tsx';
+import OnboardingOverlay from './onboarding/OnboardingOverlay.tsx';
 
 const App: React.FC = () => {
   const [path, setPath] = useState(window.location.pathname);
@@ -28,6 +30,7 @@ const App: React.FC = () => {
   const [mobileTab, setMobileTab] = useState<'chat' | 'preview'>('preview');
   const [liveProject, setLiveProject] = useState<Project | null>(null);
   const [liveLoading, setLiveLoading] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
 
   const navigateTo = (newPath: string, newMode?: AppMode) => {
     try { if (window.location.pathname !== newPath) window.history.pushState({}, '', newPath); } catch (e) {}
@@ -57,6 +60,18 @@ const App: React.FC = () => {
     return () => window.removeEventListener('popstate', handlePopState);
   }, [path]);
 
+  // Handle first-time login onboarding
+  useEffect(() => {
+    if (user && !localStorage.getItem(`onboarding_done_${user.id}`)) {
+      setShowOnboarding(true);
+    }
+  }, [user]);
+
+  const handleOnboardingComplete = () => {
+    if (user) localStorage.setItem(`onboarding_done_${user.id}`, 'true');
+    setShowOnboarding(false);
+  };
+
   if (path.startsWith('/preview/')) return <LivePreviewView project={liveProject} loading={liveLoading} onReturnToTerminal={() => navigateTo('/login')} />;
   if (authLoading) return <div className="h-screen w-full flex items-center justify-center bg-[#09090b]"><div className="w-12 h-12 border-4 border-pink-500/20 border-t-pink-500 rounded-full animate-spin"></div></div>;
 
@@ -77,6 +92,8 @@ const App: React.FC = () => {
     <div className="h-[100dvh] flex flex-col text-slate-100 overflow-hidden">
       <Header user={user} path={path} mode={mode} navigateTo={navigateTo} />
       <main className="flex-1 flex overflow-hidden relative">
+        {showOnboarding && <OnboardingOverlay onComplete={handleOnboardingComplete} />}
+        
         <input type="file" ref={fileInputRef} className="hidden" accept="image/*" onChange={(e) => {
           const file = e.target.files?.[0];
           if (file) {
@@ -85,7 +102,10 @@ const App: React.FC = () => {
             reader.readAsDataURL(file);
           }
         }} />
-        {mode === AppMode.SETTINGS ? (
+
+        {mode === AppMode.HELP ? (
+          <HelpCenterView onBack={() => setMode(AppMode.PREVIEW)} />
+        ) : mode === AppMode.SETTINGS ? (
           <GithubSettingsView config={logic.githubConfig} onSave={(c) => { logic.setGithubConfig(c); db.updateGithubConfig(user.id, c); }} onBack={() => setMode(AppMode.PREVIEW)} onDisconnect={async () => {
             if (window.confirm("গিটহাব ডিসকানেক্ট করতে চান?")) {
               await db.unlinkGithubIdentity();

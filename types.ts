@@ -8,7 +8,8 @@ export enum AppMode {
   SETTINGS = 'SETTINGS',
   ADMIN = 'ADMIN',
   PROJECTS = 'PROJECTS',
-  LIVE_PREVIEW = 'LIVE_PREVIEW'
+  LIVE_PREVIEW = 'LIVE_PREVIEW',
+  HELP = 'HELP'
 }
 
 export interface ProjectConfig {

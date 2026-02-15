@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Sparkles, Crown, Settings } from 'lucide-react';
+import { Sparkles, Crown, Settings, HelpCircle } from 'lucide-react';
 import { AppMode, User } from '../types';
 
 interface HeaderProps {
@@ -54,6 +54,13 @@ const Header: React.FC<HeaderProps> = ({ user, path, mode, navigateTo }) => {
       </nav>
       
       <div className="flex items-center gap-2 md:gap-4 shrink-0">
+        <button 
+          onClick={() => navigateTo('/dashboard', AppMode.HELP)}
+          className={`p-2 md:p-2.5 rounded-xl border border-white/5 transition-all ${mode === AppMode.HELP ? 'bg-pink-600 text-white border-pink-500' : 'bg-black/40 text-zinc-500 hover:text-white hover:border-white/10'}`}
+          title="Documentation"
+        >
+          <HelpCircle size={18} />
+        </button>
         <button 
           onClick={() => navigateTo('/dashboard', AppMode.SETTINGS)}
           className={`p-2 md:p-2.5 rounded-xl border border-white/5 transition-all ${mode === AppMode.SETTINGS ? 'bg-pink-600 text-white' : 'bg-black/40 text-zinc-500 hover:text-white'}`}
