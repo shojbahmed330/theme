@@ -99,7 +99,8 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
 
     setIsGenerating(true);
     try {
-      const usePro = user ? user.tokens > 100 : false;
+      // User explicitly requested to use Flash only to avoid Pro quota errors
+      const usePro = false; 
       const res = await gemini.current.generateWebsite(text, projectFiles, messages, currentImage ? { data: currentImage.data, mimeType: currentImage.mimeType } : undefined, projectConfig.dbConfig, usePro);
 
       if (res.files && Object.keys(res.files).length > 0) {
