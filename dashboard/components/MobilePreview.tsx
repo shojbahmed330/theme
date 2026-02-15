@@ -62,11 +62,11 @@ const MobilePreview: React.FC<MobilePreviewProps> = ({
   };
 
   return (
-    <section className={`flex-1 flex flex-col items-center justify-center p-6 relative h-full ${mobileTab === 'chat' ? 'hidden lg:flex' : 'flex'}`}>
+    <section className={`flex-1 flex flex-col items-center justify-center p-6 relative h-full pt-20 lg:pt-6 ${mobileTab === 'chat' ? 'hidden lg:flex' : 'flex'}`}>
       
       {/* Live Preview Floating Button */}
       {hasFiles && !isGenerating && projectId && (
-        <div className="absolute top-10 right-10 z-30 group">
+        <div className="absolute top-10 right-10 z-30 group hidden lg:block">
           <button 
             onClick={() => setShowQrModal(true)}
             className="flex items-center gap-3 px-5 py-3 bg-pink-600/10 hover:bg-pink-600 text-pink-500 hover:text-white rounded-2xl border border-pink-500/20 backdrop-blur-xl transition-all shadow-xl active:scale-95 group"

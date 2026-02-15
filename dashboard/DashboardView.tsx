@@ -58,9 +58,9 @@ const DashboardView: React.FC<DashboardViewProps> = (props) => {
           />
         </div>
 
-        {/* --- MOBILE UI CONTROLS --- */}
-        <div className="lg:hidden fixed top-24 left-1/2 -translate-x-1/2 z-[200] flex gap-3 items-center">
-            <div className="bg-black/60 backdrop-blur-3xl p-1.5 rounded-2xl border border-white/10 flex gap-1 shadow-2xl ring-1 ring-white/5">
+        {/* --- MOBILE UI CONTROLS (ABSOLUTE TOP OF WORKING AREA) --- */}
+        <div className="lg:hidden absolute top-5 left-1/2 -translate-x-1/2 z-[400] flex gap-3 items-center w-full px-6 justify-center">
+            <div className="bg-black/80 backdrop-blur-3xl p-1.5 rounded-2xl border border-white/10 flex gap-1 shadow-2xl ring-1 ring-white/5">
               <button 
                 onClick={() => props.setMobileTab('chat')} 
                 className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-[10px] font-black uppercase transition-all duration-300 ${props.mobileTab === 'chat' ? 'bg-pink-600 text-white shadow-[0_0_20px_rgba(236,72,153,0.3)]' : 'text-zinc-500'}`}
@@ -111,9 +111,9 @@ const DashboardView: React.FC<DashboardViewProps> = (props) => {
   }
 
   return (
-    <div className="flex-1 flex flex-col md:flex-row overflow-y-auto md:overflow-hidden animate-in fade-in duration-500 bg-[#09090b]">
+    <div className="flex-1 flex flex-col md:flex-row overflow-hidden animate-in fade-in duration-500 bg-[#09090b]">
       {props.buildStatus.status === 'idle' ? (
-        <div className="flex-1 flex flex-col md:flex-row min-h-0 overflow-y-auto md:overflow-hidden">
+        <div className="flex-1 flex overflow-hidden">
           <CodeEditor 
             projectFiles={props.projectFiles} setProjectFiles={props.setProjectFiles} 
             selectedFile={props.selectedFile} setSelectedFile={props.setSelectedFile} 
@@ -123,8 +123,11 @@ const DashboardView: React.FC<DashboardViewProps> = (props) => {
         </div>
       ) : (
         <BuildStatusDisplay 
-          status={props.buildStatus.status} message={props.buildStatus.message}
-          apkUrl={props.buildStatus.apkUrl} webUrl={props.buildStatus.webUrl} buildSteps={props.buildSteps}
+          status={props.buildStatus.status} 
+          message={props.buildStatus.message}
+          apkUrl={props.buildStatus.apkUrl} 
+          webUrl={props.buildStatus.webUrl}
+          buildSteps={props.buildSteps}
           handleSecureDownload={props.handleSecureDownload}
           resetBuild={() => props.setBuildStatus({ status: 'idle', message: '' })}
         />
