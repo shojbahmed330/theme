@@ -20,7 +20,7 @@ const SYSTEM_PROMPT = `You are OneClick Studio, an elite Full-Stack AI developer
 
 3. **STAGE 3: ARCHITECTURE EXECUTION (Coding)**
    - Only after the user answers the design questions, generate the FULL WORKING CODE for that module.
-   - Update existing files or create new ones in the 'files' object.
+   - Use the 'files' array to send filename and content.
    - Mention that you are now executing the code. (Token Cost: 1)
 
 ### TECHNICAL STANDARDS:
@@ -33,7 +33,7 @@ const SYSTEM_PROMPT = `You are OneClick Studio, an elite Full-Stack AI developer
 {
   "answer": "Bengali message explaining current stage",
   "thought": "Technical reasoning",
-  "files": { "filename": "content" }, // ONLY include this when executing Stage 3
+  "files": [ { "name": "index.html", "content": "..." } ],
   "questions": [ { "id": "...", "text": "...", "type": "...", "options": [...] } ]
 }`;
 
@@ -90,7 +90,17 @@ export class GeminiService {
             properties: {
               answer: { type: Type.STRING },
               thought: { type: Type.STRING },
-              files: { type: Type.OBJECT, additionalProperties: { type: Type.STRING } },
+              files: { 
+                type: Type.ARRAY,
+                items: {
+                  type: Type.OBJECT,
+                  properties: {
+                    name: { type: Type.STRING },
+                    content: { type: Type.STRING }
+                  },
+                  required: ["name", "content"]
+                }
+              },
               questions: {
                 type: Type.ARRAY,
                 items: {
@@ -120,11 +130,20 @@ export class GeminiService {
       });
       
       const parsed = JSON.parse(response.text);
+      
+      // Convert Array of files back to Record map
+      const fileMap: Record<string, string> = {};
+      if (Array.isArray(parsed.files)) {
+        parsed.files.forEach((f: { name: string, content: string }) => {
+          if (f.name && f.content) fileMap[f.name] = f.content;
+        });
+      }
+
       return {
         answer: parsed.answer || "Processing request...",
         thought: parsed.thought || "",
         questions: parsed.questions || [],
-        files: parsed.files || {}
+        files: fileMap
       };
     } catch (error) {
       console.error("Gemini Multi-Stage Error:", error);
