@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Smartphone, Sparkles, Loader2, Cpu, QrCode, X, Copy, ExternalLink, SmartphoneNfc, Check } from 'lucide-react';
 import { AppMode, ProjectConfig } from '../../types';
 import { buildFinalHtml } from '../../utils/previewBuilder';
+import { useLanguage } from '../../i18n/LanguageContext';
 
 interface MobilePreviewProps {
   projectFiles: Record<string, string>;
@@ -21,6 +22,7 @@ const MobilePreview: React.FC<MobilePreviewProps> = ({
   const [showQrModal, setShowQrModal] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const { t } = useLanguage();
   
   const finalHtml = buildFinalHtml(projectFiles);
   const hasFiles = Object.keys(projectFiles).length > 0 && projectFiles['index.html'];
@@ -72,7 +74,7 @@ const MobilePreview: React.FC<MobilePreviewProps> = ({
             className="flex items-center gap-3 px-5 py-3 bg-pink-600/10 hover:bg-pink-600 text-pink-500 hover:text-white rounded-2xl border border-pink-500/20 backdrop-blur-xl transition-all shadow-xl active:scale-95 group"
           >
             <QrCode size={18} className="group-hover:rotate-12 transition-transform"/>
-            <span className="text-[10px] font-black uppercase tracking-widest">Live Mobile Link</span>
+            <span className="text-[10px] font-black uppercase tracking-widest">{t('preview.live_link')}</span>
           </button>
         </div>
       )}
@@ -122,7 +124,7 @@ const MobilePreview: React.FC<MobilePreviewProps> = ({
                       OneClick Studio
                     </h2>
                     <p className="text-[10px] font-black text-zinc-400 uppercase tracking-[0.2em] leading-relaxed animate-pulse">
-                      Waiting for map specifications...
+                      {t('preview.waiting')}
                     </p>
                  </div>
               </div>
@@ -147,10 +149,10 @@ const MobilePreview: React.FC<MobilePreviewProps> = ({
 
                     <div className="space-y-3">
                        <h3 className="text-xl font-black text-white uppercase tracking-tighter shimmer-text">
-                         BUILDING...
+                         {t('preview.building')}
                        </h3>
                        <p className="text-[9px] font-black uppercase text-pink-500/60 tracking-[0.5em] animate-pulse">
-                         PLEASE WAIT
+                         {t('preview.please_wait')}
                        </p>
                     </div>
 
@@ -183,8 +185,8 @@ const MobilePreview: React.FC<MobilePreviewProps> = ({
               <div className="w-16 h-16 bg-pink-500/10 rounded-[1.5rem] flex items-center justify-center mx-auto mb-4 border border-pink-500/20">
                 <SmartphoneNfc size={32} className="text-pink-500"/>
               </div>
-              <h3 className="text-2xl font-black text-white uppercase tracking-tighter">Mobile <span className="text-pink-500">Uplink</span></h3>
-              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-600 mt-2">Test native features on your device</p>
+              <h3 className="text-2xl font-black text-white uppercase tracking-tighter">{t('preview.uplink_title').split(' ')[0]} <span className="text-pink-500">{t('preview.uplink_title').split(' ')[1]}</span></h3>
+              <p className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-600 mt-2">{t('preview.uplink_desc')}</p>
             </div>
 
             <div className="p-4 bg-white rounded-3xl mb-8 shadow-[0_0_50px_rgba(236,72,153,0.2)] w-[240px] h-[240px] flex items-center justify-center relative overflow-hidden">
@@ -220,12 +222,12 @@ const MobilePreview: React.FC<MobilePreviewProps> = ({
                   onClick={() => { setShowQrModal(false); setQrDataUrl(null); }}
                   className="flex-1 py-4 bg-pink-600 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all shadow-xl shadow-pink-600/20"
                 >
-                  Done
+                  {t('common.done')}
                 </button>
               </div>
 
               <p className="text-[9px] text-zinc-600 uppercase font-black leading-relaxed">
-                <span className="text-pink-500">Tip:</span> Scan with your phone's camera to access GPS, Camera, and Haptics directly in browser.
+                <span className="text-pink-500">Tip:</span> {t('preview.scan_tip')}
               </p>
             </div>
           </div>

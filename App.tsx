@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { AppMode, Project } from './types.ts';
 import { DatabaseService } from './services/dbService.ts';
+import { LanguageProvider } from './i18n/LanguageContext.tsx';
 
 // Layout & Hook Imports
 import { useAppAuth } from './hooks/useAppAuth.ts';
@@ -24,7 +25,7 @@ import LivePreviewView from './preview/LivePreviewView.tsx';
 import HelpCenterView from './help/HelpCenterView.tsx';
 import OnboardingOverlay from './onboarding/OnboardingOverlay.tsx';
 
-const App: React.FC = () => {
+const AppContent: React.FC = () => {
   const [path, setPath] = useState(window.location.pathname);
   const [mode, setMode] = useState<AppMode>(AppMode.PREVIEW);
   const [mobileTab, setMobileTab] = useState<'chat' | 'preview'>('preview');
@@ -137,5 +138,11 @@ const App: React.FC = () => {
     </div>
   );
 };
+
+const App: React.FC = () => (
+  <LanguageProvider>
+    <AppContent />
+  </LanguageProvider>
+);
 
 export default App;

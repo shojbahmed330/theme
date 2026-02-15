@@ -2,6 +2,7 @@
 import React from 'react';
 import { Check } from 'lucide-react';
 import { Package } from '../types';
+import { useLanguage } from '../i18n/LanguageContext';
 
 // Sub-components
 import PackageGrid from './components/PackageGrid';
@@ -28,6 +29,8 @@ const ShopView: React.FC<ShopViewProps> = ({
   paymentMethod, setPaymentMethod, paymentForm, setPaymentForm, 
   paymentSubmitting, handlePaymentSubmit, handlePaymentScreenshotUpload 
 }) => {
+  const { t } = useLanguage();
+
   return (
     <div className="flex-1 p-6 md:p-20 overflow-y-auto">
        {paymentStep === 'idle' ? (
@@ -51,9 +54,9 @@ const ShopView: React.FC<ShopViewProps> = ({
        ) : (
          <div className="max-w-md mx-auto glass-tech p-16 rounded-[3rem] text-center animate-in zoom-in">
             <div className="w-20 h-20 bg-green-500/20 text-green-400 rounded-full flex items-center justify-center mx-auto mb-6 shadow-[0_0_30px_rgba(34,197,94,0.3)]"><Check size={40}/></div>
-            <h3 className="text-3xl font-black mb-4 text-white uppercase tracking-tighter">Request Sent</h3>
-            <p className="text-sm text-slate-400 leading-relaxed mb-8">Admin will verify your TrxID. Once confirmed, <span className="text-pink-400 font-bold">{selectedPkg?.tokens} Units</span> will be added to your account instantly.</p>
-            <button onClick={() => setPaymentStep('idle')} className="px-10 py-4 bg-pink-600 rounded-2xl font-black uppercase text-xs shadow-lg active:scale-95">Complete Process</button>
+            <h3 className="text-3xl font-black mb-4 text-white uppercase tracking-tighter">{t('shop.request_sent')}</h3>
+            <p className="text-sm text-slate-400 leading-relaxed mb-8">{t('shop.verify_desc')}</p>
+            <button onClick={() => setPaymentStep('idle')} className="px-10 py-4 bg-pink-600 rounded-2xl font-black uppercase text-xs shadow-lg active:scale-95">{t('shop.complete_process')}</button>
          </div>
        )}
     </div>

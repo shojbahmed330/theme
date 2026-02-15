@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { Project } from '../types';
 import { DatabaseService } from '../services/dbService';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface ProjectsViewProps {
   userId: string;
@@ -22,6 +23,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const { t } = useLanguage();
   
   const [showModal, setShowModal] = useState<'save' | 'new' | null>(null);
   const [projectNameInput, setProjectNameInput] = useState('');
@@ -67,12 +69,9 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({
       setProjectNameInput('');
       await fetchProjects();
       
-      // AUTO LOAD THE SAVED PROJECT
       if (newProj) onLoadProject(newProj);
-      
-      alert("প্রজেক্ট সফলভাবে সেভ করা হয়েছে এবং এখন এটি একটিভ।");
     } catch (e: any) {
-      alert("ভুল: " + e.message);
+      alert(t('common.error') + ": " + e.message);
     } finally {
       setIsProcessing(false);
     }
@@ -81,7 +80,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({
   const handleDelete = async (e: React.MouseEvent, id: string) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!window.confirm("আপনি কি নিশ্চিতভাবে এই প্রজেক্টটি ডিলিট করতে চান?")) return;
+    if (!window.confirm(t('projects.delete_confirm'))) return;
     setDeletingId(id);
     try {
       await db.deleteProject(userId, id);
@@ -90,7 +89,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({
       }
       setProjects(prev => prev.filter(p => p.id !== id));
     } catch (err: any) {
-      alert("Error: " + err.message);
+      alert(t('common.error') + ": " + err.message);
     } finally {
       setDeletingId(null);
     }
@@ -126,10 +125,10 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({
           <div>
             <h2 className="text-3xl md:text-4xl font-black text-white flex items-center gap-4">
               <FolderKanban className="text-pink-500" size={32}/>
-              My <span className="text-pink-500">Workspace</span>
+              {t('projects.title').split(' ')[0]} <span className="text-pink-500">{t('projects.title').split(' ')[1]}</span>
             </h2>
             <p className="text-[10px] font-black uppercase tracking-[0.4em] text-zinc-500 mt-2">
-              Managing {projects.length} Active Stubs
+              {t('projects.subtitle')}
             </p>
           </div>
 
@@ -138,13 +137,13 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({
               onClick={() => setShowModal('new')}
               className="px-6 py-4 bg-zinc-800 border border-zinc-700 rounded-2xl font-black uppercase text-[10px] text-zinc-300 hover:bg-zinc-700 transition-all flex items-center gap-3 active:scale-95"
             >
-              <PlusCircle size={16}/> New Project
+              <PlusCircle size={16}/> {t('projects.new_project')}
             </button>
             <button 
               onClick={() => setShowModal('save')}
               className="px-8 py-4 bg-pink-600 rounded-2xl font-black uppercase text-[10px] text-white shadow-lg shadow-pink-500/20 hover:bg-pink-500 transition-all flex items-center gap-3 active:scale-95"
             >
-              <Save size={16}/> Save Current
+              <Save size={16}/> {t('projects.save_current')}
             </button>
           </div>
         </div>
@@ -153,7 +152,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({
           <div className="pl-4"><Search className="text-slate-500" size={20}/></div>
           <input 
             type="text" 
-            placeholder="Search saved projects..." 
+            placeholder={t('projects.search')} 
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             className="flex-1 bg-transparent py-4 text-sm outline-none text-white placeholder:text-zinc-700"
@@ -163,7 +162,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({
         {loading ? (
           <div className="h-64 flex flex-col items-center justify-center gap-4">
             <Loader2 className="animate-spin text-pink-500" size={32}/>
-            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-600">Retrieving Cloud Data...</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-zinc-600">{t('common.loading')}</span>
           </div>
         ) : filteredProjects.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -193,7 +192,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({
                     <div className="flex items-center gap-2 text-[9px] font-bold text-zinc-600 uppercase tracking-widest">
                       <Calendar size={10}/> {new Date(project.updated_at).toLocaleDateString()}
                       {localStorage.getItem('active_project_id') === project.id && (
-                        <span className="ml-2 text-pink-500 font-black">• ACTIVE</span>
+                        <span className="ml-2 text-pink-500 font-black">• {t('projects.active')}</span>
                       )}
                     </div>
                   </div>
@@ -226,7 +225,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({
                   onClick={() => onLoadProject(project)}
                   className={`w-full py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 relative z-10 ${localStorage.getItem('active_project_id') === project.id ? 'bg-pink-600 text-white' : 'bg-zinc-900 border border-zinc-800 hover:bg-zinc-800'}`}
                 >
-                  {localStorage.getItem('active_project_id') === project.id ? 'Currently Mounted' : 'Mount to Editor'} <ChevronRight size={14}/>
+                  {localStorage.getItem('active_project_id') === project.id ? t('projects.active') : t('projects.mount')} <ChevronRight size={14}/>
                 </button>
               </div>
             ))}
@@ -236,8 +235,8 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({
             <div className="w-20 h-20 bg-pink-500/10 rounded-full flex items-center justify-center mx-auto mb-8 text-pink-500">
                <AlertCircle size={40}/>
             </div>
-            <h3 className="text-xl font-black text-white mb-2 uppercase">No Projects Detected</h3>
-            <p className="text-xs text-zinc-600 max-w-xs mx-auto leading-relaxed uppercase tracking-widest">Your cloud storage is currently empty.</p>
+            <h3 className="text-xl font-black text-white mb-2 uppercase">{t('projects.no_projects')}</h3>
+            <p className="text-xs text-zinc-600 max-w-xs mx-auto leading-relaxed uppercase tracking-widest">{t('projects.empty_desc')}</p>
           </div>
         )}
       </div>
@@ -250,7 +249,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({
               <div className="space-y-6 mt-6">
                 <input autoFocus value={projectNameInput} onChange={e => setProjectNameInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && handleAction()} placeholder="Project Name..." className="w-full bg-zinc-950 border border-zinc-800 rounded-2xl p-5 text-white outline-none" />
                 <button disabled={isProcessing || !projectNameInput.trim()} onClick={handleAction} className="w-full py-5 bg-pink-600 rounded-2xl font-black uppercase text-[10px] text-white shadow-lg active:scale-95 transition-all">
-                  {isProcessing ? <Loader2 className="animate-spin mx-auto" size={16}/> : 'Confirm'}
+                  {isProcessing ? <Loader2 className="animate-spin mx-auto" size={16}/> : t('common.confirm')}
                 </button>
               </div>
            </div>

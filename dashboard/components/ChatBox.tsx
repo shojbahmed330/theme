@@ -2,6 +2,7 @@
 import React, { useEffect, useRef } from 'react';
 import { Sparkles, Loader2, Send, Zap, Layers, Image as ImageIcon, X } from 'lucide-react';
 import Questionnaire from './Questionnaire';
+import { useLanguage } from '../../i18n/LanguageContext';
 
 interface ChatBoxProps {
   messages: any[];
@@ -21,6 +22,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({
 }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { t } = useLanguage();
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -55,7 +57,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({
                   <div className="w-6 h-6 bg-pink-500/10 rounded-lg border border-pink-500/30 flex items-center justify-center">
                     <Sparkles size={12} className="text-pink-500"/>
                   </div>
-                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-pink-500">Neural Engine</span>
+                  <span className="text-[10px] font-black uppercase tracking-[0.2em] text-pink-500">{t('chat.neural_engine')}</span>
                 </div>
               )}
               
@@ -82,7 +84,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({
                   <div className="mt-4 p-5 bg-white/5 border border-white/5 rounded-2xl italic text-zinc-500 text-[11px] leading-relaxed animate-in fade-in duration-700 break-words">
                     <div className="flex items-center gap-2 mb-1">
                        <Zap size={10} className="text-pink-500"/>
-                       <span className="font-black uppercase text-[9px] tracking-widest text-pink-500">Configuration Locked</span>
+                       <span className="font-black uppercase text-[9px] tracking-widest text-pink-500">{t('chat.config_locked')}</span>
                     </div>
                     {m.answersSummary.split('\n').map((line: string, i: number) => (
                       <div key={i}>{line}</div>
@@ -113,10 +115,10 @@ const ChatBox: React.FC<ChatBoxProps> = ({
                 </div>
              </div>
              <div className="space-y-2">
-                <h3 className="text-xl font-black text-white tracking-tight uppercase">New Project Stub</h3>
-                <p className="text-[10px] font-black uppercase tracking-[0.5em] text-pink-500">Secure Uplink Ready</p>
+                <h3 className="text-xl font-black text-white tracking-tight uppercase">{t('chat.empty_title')}</h3>
+                <p className="text-[10px] font-black uppercase tracking-[0.5em] text-pink-500">{t('chat.secure_uplink')}</p>
              </div>
-             <p className="text-xs text-zinc-500 max-w-[240px] leading-relaxed font-bold">Describe your application or upload an image. AI will build the code instantly.</p>
+             <p className="text-xs text-zinc-500 max-w-[240px] leading-relaxed font-bold">{t('chat.empty_desc')}</p>
           </div>
         )}
         
@@ -127,7 +129,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({
                   <div className="absolute inset-0 bg-pink-500/20 blur-md rounded-full animate-ping"></div>
                   <Loader2 className="animate-spin relative z-10" size={18}/>
                </div>
-               <span className="text-xs font-black uppercase tracking-tighter text-pink-500">Processing Stream...</span>
+               <span className="text-xs font-black uppercase tracking-tighter text-pink-500">{t('chat.processing')}</span>
             </div>
           </div>
         )}
@@ -153,7 +155,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({
              value={input} 
              onChange={e => setInput(e.target.value)} 
              onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), handleSend())} 
-             placeholder="Describe your vision..." 
+             placeholder={t('chat.placeholder')} 
              className="flex-1 bg-transparent p-2 text-[13px] h-12 outline-none text-white resize-none placeholder:text-zinc-700 font-bold" 
            />
            <button onClick={() => handleSend()} disabled={isGenerating || (!input.trim() && !selectedImage)} className="w-10 h-10 md:w-12 md:h-12 bg-pink-600 text-white rounded-2xl flex items-center justify-center active:scale-95 disabled:opacity-30 transition-all shadow-lg shadow-pink-600/20">

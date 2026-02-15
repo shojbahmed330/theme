@@ -2,16 +2,19 @@
 import React from 'react';
 import { Wallet, Calendar, ShieldCheck } from 'lucide-react';
 import { User } from '../../types';
+import { useLanguage } from '../../i18n/LanguageContext';
 
 interface ProfileStatsProps {
   user: User;
 }
 
 const ProfileStats: React.FC<ProfileStatsProps> = ({ user }) => {
+  const { t } = useLanguage();
+  
   const stats = [
-    { label: 'Tokens', value: user.tokens, icon: Wallet },
-    { label: 'Joined', value: new Date(user.joinedAt).toLocaleDateString(), icon: Calendar },
-    { label: 'Role', value: user.isAdmin ? 'Admin' : 'Developer', icon: ShieldCheck }
+    { label: t('profile.stats.tokens'), value: user.tokens, icon: Wallet },
+    { label: t('profile.stats.joined'), value: new Date(user.joinedAt).toLocaleDateString(), icon: Calendar },
+    { label: t('profile.stats.role'), value: user.isAdmin ? t('profile.stats.admin') : t('profile.stats.developer'), icon: ShieldCheck }
   ];
 
   return (

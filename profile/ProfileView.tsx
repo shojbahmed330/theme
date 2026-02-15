@@ -2,6 +2,7 @@
 import React from 'react';
 import { LogOut, Settings, Github, CheckCircle2, XCircle, ArrowRight } from 'lucide-react';
 import { User as UserType, Transaction, GithubConfig, AppMode } from '../types.ts';
+import { useLanguage } from '../i18n/LanguageContext.tsx';
 
 // Component Imports
 import ProfileHeader from './components/ProfileHeader.tsx';
@@ -28,6 +29,7 @@ interface ProfileViewProps {
 }
 
 const ProfileView: React.FC<ProfileViewProps> = (props) => {
+  const { t } = useLanguage();
   const isConnected = !!(props.githubConfig.token && props.githubConfig.owner);
 
   return (
@@ -48,17 +50,17 @@ const ProfileView: React.FC<ProfileViewProps> = (props) => {
                    <Github size={32} className={isConnected ? "animate-pulse" : ""}/>
                 </div>
                 <div>
-                   <h3 className="text-xl font-black text-white uppercase tracking-tight">GitHub Infrastructure</h3>
+                   <h3 className="text-xl font-black text-white uppercase tracking-tight">{t('profile.github_infra')}</h3>
                    <div className="flex items-center gap-2 mt-1">
                       {isConnected ? (
                          <>
                             <CheckCircle2 size={12} className="text-green-500"/>
-                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-green-500">Connected as @{props.githubConfig.owner}</span>
+                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-green-500">{t('profile.connected')} @{props.githubConfig.owner}</span>
                          </>
                       ) : (
                          <>
                             <XCircle size={12} className="text-pink-500"/>
-                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-pink-500/60">Disconnected • Offline</span>
+                            <span className="text-[10px] font-black uppercase tracking-[0.2em] text-pink-500/60">{t('profile.offline')}</span>
                          </>
                       )}
                    </div>
@@ -69,7 +71,7 @@ const ProfileView: React.FC<ProfileViewProps> = (props) => {
                 onClick={() => props.navigateTo('/dashboard', AppMode.SETTINGS)}
                 className="px-8 py-4 bg-white/5 border border-white/10 hover:bg-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest text-zinc-400 hover:text-white transition-all flex items-center gap-3 active:scale-95"
              >
-                <Settings size={14}/> {isConnected ? 'Manage Uplink' : 'Setup Link'} <ArrowRight size={14}/>
+                <Settings size={14}/> {isConnected ? t('profile.manage_uplink') : t('profile.setup_link')} <ArrowRight size={14}/>
              </button>
           </div>
 
@@ -85,7 +87,7 @@ const ProfileView: React.FC<ProfileViewProps> = (props) => {
           />
 
           <button onClick={props.handleLogout} className="w-full py-6 bg-red-600/10 border border-red-600/20 text-red-500 rounded-[2rem] font-black uppercase text-xs flex items-center justify-center gap-3 hover:bg-red-600 hover:text-white transition-all shadow-xl shadow-red-600/5">
-             <LogOut size={20}/> টার্মিনাল থেকে প্রস্থান করুন
+             <LogOut size={20}/> {t('common.logout')}
           </button>
        </div>
     </div>
