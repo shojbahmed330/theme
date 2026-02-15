@@ -22,9 +22,6 @@ export const buildFinalHtml = (projectFiles: Record<string, string>) => {
         vibrate: (pattern = 200) => { 
           if (window.navigator.vibrate) {
             window.navigator.vibrate(pattern);
-            console.log('Vibrating pattern:', pattern);
-          } else {
-            console.log('Vibration not supported on this device');
           }
         },
         getLocation: () => {
@@ -36,97 +33,73 @@ export const buildFinalHtml = (projectFiles: Record<string, string>) => {
           });
         }
       };
-      console.log('Mobile Preview Bridge (Enhanced) Initialized');
+      console.log('Mobile Preview Bridge Initialized');
     </script>
   `;
 
-  let entryHtml = projectFiles['index.html'] || '<div id="app"></div>';
+  const entryHtml = projectFiles['index.html'] || '<div id="app"></div>';
   
-  // Strip relative links/scripts as they won't resolve in srcDoc unless handled
-  let processedHtml = entryHtml
-    .replace(/<link[^>]+href=["'](?!\w+:\/\/)[^"']+["'][^>]*>/gi, '')
-    .replace(/<script[^>]+src=["'](?!\w+:\/\/)[^"']+["'][^>]*><\/script>/gi, '');
-
   const cssContent = Object.entries(projectFiles)
     .filter(([path]) => path.endsWith('.css'))
     .map(([path, content]) => `/* ${path} */\n${content}`)
     .join('\n');
     
   const jsContent = Object.entries(projectFiles)
-    .filter(([path]) => path.endsWith('.js'))
+    .filter(([path]) => path.endsWith('.js') || path === 'app.js')
     .map(([path, content]) => `// --- FILE: ${path} ---\ntry {\n${content}\n} catch(e) { console.error("Error in ${path}:", e); }\n`)
     .join('\n');
   
   const tailwindCdn = '<script src="https://cdn.tailwindcss.com"></script>';
+  const lucideCdn = '<script src="https://unpkg.com/lucide@latest"></script>';
   
   const headInjection = `
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     ${tailwindCdn}
+    ${lucideCdn}
     <style>
       /* Mobile App Reset & Safe Area Handling */
-      * { 
-        box-sizing: border-box; 
-        -webkit-tap-highlight-color: transparent;
-      }
+      * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
       
       :root {
-        --safe-top: env(safe-area-inset-top);
-        --safe-bottom: env(safe-area-inset-bottom);
-        --safe-left: env(safe-area-inset-left);
-        --safe-right: env(safe-area-inset-right);
+        --safe-top: env(safe-area-inset-top, 0px);
+        --safe-bottom: env(safe-area-inset-bottom, 0px);
       }
 
       html, body {
-        height: 100dvh;
-        width: 100vw;
+        height: 100%;
+        width: 100%;
         margin: 0;
         padding: 0;
-        overflow: hidden;
         background-color: #000;
-      }
-
-      body { 
-        -ms-overflow-style: none; 
-        scrollbar-width: none; 
-        color: #f4f4f5;
+        color: #fff;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-        display: flex;
-        flex-direction: column;
-        /* Default safety padding */
-        padding-top: var(--safe-top);
-        padding-bottom: var(--safe-bottom);
       }
 
-      /* Container for scrolling content if needed */
-      #app-root, #root, #app, .app-container {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        height: 100%;
-        overflow-y: auto;
+      body {
         overflow-x: hidden;
-        position: relative;
+        overflow-y: auto;
       }
 
       ::-webkit-scrollbar { display: none; }
-      
-      /* Utility for full screen layouts */
-      .full-screen {
-        height: 100%;
-        width: 100%;
-        display: flex;
-        flex-direction: column;
-      }
 
       ${cssContent}
     </style>
     ${polyfill}
   `;
 
-  const finalScript = `<script>\n${jsContent}\n</script>`;
+  const bodyInjection = `
+    <script>
+      // Initialize Lucide icons if they exist in the generated HTML
+      if (window.lucide) {
+        window.lucide.createIcons();
+      }
+    </script>
+    <script>\n${jsContent}\n</script>
+  `;
 
-  if (!processedHtml.toLowerCase().includes('<html')) {
+  // If the AI didn't provide a full HTML document, wrap it
+  if (!entryHtml.toLowerCase().includes('<html')) {
     return `
       <!DOCTYPE html>
       <html lang="en">
@@ -134,26 +107,28 @@ export const buildFinalHtml = (projectFiles: Record<string, string>) => {
         ${headInjection}
       </head>
       <body>
-        <div id="app-root">
-          ${processedHtml}
+        <div id="app-root" class="min-h-screen">
+          ${entryHtml}
         </div>
-        ${finalScript}
+        ${bodyInjection}
       </body>
       </html>
     `;
   }
 
-  if (processedHtml.includes('</head>')) {
-    processedHtml = processedHtml.replace('</head>', `${headInjection}</head>`);
-  } else if (processedHtml.includes('<body')) {
-    processedHtml = processedHtml.replace('<body', `<head>${headInjection}</head><body`);
-  }
-
-  if (processedHtml.includes('</body>')) {
-    processedHtml = processedHtml.replace('</body>', `${finalScript}</body>`);
+  // If it is a full document, inject our headers and scripts
+  let finalHtml = entryHtml;
+  if (finalHtml.includes('</head>')) {
+    finalHtml = finalHtml.replace('</head>', `${headInjection}</head>`);
   } else {
-    processedHtml = processedHtml + finalScript;
+    finalHtml = finalHtml.replace('<html', `<html><head>${headInjection}</head><html`);
   }
 
-  return processedHtml;
+  if (finalHtml.includes('</body>')) {
+    finalHtml = finalHtml.replace('</body>', `${bodyInjection}</body>`);
+  } else {
+    finalHtml = finalHtml + bodyInjection;
+  }
+
+  return finalHtml;
 };
