@@ -6,7 +6,7 @@ import { DatabaseService } from '../services/dbService';
 import { GithubService } from '../services/githubService';
 
 export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null) => void) => {
-  const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
+  const [currentProjectId, setCurrentProjectId] = useState<string | null>(localStorage.getItem('active_project_id'));
   const [messages, setMessages] = useState<any[]>([]);
   const [input, setInput] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
@@ -27,6 +27,24 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
     owner: '' 
   });
 
+  const gemini = useRef(new GeminiService());
+  const db = DatabaseService.getInstance();
+  const github = useRef(new GithubService());
+
+  // Restore Project on Mount/Reload
+  useEffect(() => {
+    if (user && currentProjectId) {
+      db.getProjectById(currentProjectId).then(p => {
+        if (p) {
+          setProjectFiles(p.files || {});
+          if (p.config) setProjectConfig(p.config);
+          if (p.files && p.files['index.html']) setSelectedFile('index.html');
+          else if (p.files) setSelectedFile(Object.keys(p.files)[0]);
+        }
+      });
+    }
+  }, [user, currentProjectId]);
+
   useEffect(() => {
     if (user) {
       setGithubConfig({
@@ -41,16 +59,12 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
   const [buildSteps, setBuildSteps] = useState<BuildStep[]>([]);
   const [isDownloading, setIsDownloading] = useState(false);
 
-  const gemini = useRef(new GeminiService());
-  const db = DatabaseService.getInstance();
-  const github = useRef(new GithubService());
-
   const loadProject = (p: Project) => {
     if (!p) return;
     setCurrentProjectId(p.id);
+    localStorage.setItem('active_project_id', p.id);
     setProjectFiles(p.files || {});
     if (p.config) setProjectConfig(p.config);
-    // Auto-select index.html if it exists
     if (p.files && p.files['index.html']) setSelectedFile('index.html');
     else if (p.files) setSelectedFile(Object.keys(p.files)[0]);
   };
@@ -60,7 +74,6 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
     const text = extraData || input; 
     const currentImage = selectedImage;
 
-    // Local update of messages for user input
     if (extraData) {
       setMessages(prev => {
         const lastAsstIdx = [...prev].reverse().findIndex(m => m.role === 'assistant' && m.questions);
@@ -87,30 +100,18 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
     setIsGenerating(true);
     try {
       const usePro = user ? user.tokens > 100 : false;
+      const res = await gemini.current.generateWebsite(text, projectFiles, messages, currentImage ? { data: currentImage.data, mimeType: currentImage.mimeType } : undefined, usePro);
 
-      const res = await gemini.current.generateWebsite(
-        text, 
-        projectFiles, 
-        messages, 
-        currentImage ? { data: currentImage.data, mimeType: currentImage.mimeType } : undefined,
-        usePro
-      );
-
-      // Handle file updates carefully to avoid blank screen
       if (res.files && Object.keys(res.files).length > 0) {
-        setProjectFiles(prev => {
-          const newFiles = { ...prev, ...res.files };
-          // If we are logged in, sync to database immediately
-          if (user && currentProjectId) {
-            db.updateProject(user.id, currentProjectId, newFiles, projectConfig).catch(err => {
-              console.error("Database Auto-Sync Failed:", err);
-            });
-          }
-          return newFiles;
-        });
+        const newFiles = { ...projectFiles, ...res.files };
+        setProjectFiles(newFiles);
+        
+        // AUTO-SYNC TO DATABASE IF PROJECT IS ACTIVE
+        if (user && currentProjectId) {
+          await db.updateProject(user.id, currentProjectId, newFiles, projectConfig);
+        }
       }
 
-      // Add assistant message with safety checks
       setMessages(prev => [...prev, { 
         id: (Date.now() + 1).toString(), 
         role: 'assistant', 
@@ -126,16 +127,8 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
         if (updated) setUser(updated); 
       }
     } catch (e: any) { 
-      console.error("Neural Engine Error:", e);
-      setMessages(prev => [...prev, { 
-        id: Date.now().toString(), 
-        role: 'assistant', 
-        content: `Error: ${e.message || "An unexpected error occurred. Please try again."}`,
-        timestamp: Date.now()
-      }]); 
-    } finally { 
-      setIsGenerating(false); 
-    }
+      setMessages(prev => [...prev, { id: Date.now().toString(), role: 'assistant', content: `Error: ${e.message}`, timestamp: Date.now() }]); 
+    } finally { setIsGenerating(false); }
   };
 
   const saveProjectConfig = async (newConfig: ProjectConfig) => {
@@ -155,36 +148,18 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
   };
 
   const handleBuildAPK = async (navigateToProfile: () => void) => {
-    if (!githubConfig.token || githubConfig.token.length < 10) { 
-      navigateToProfile(); 
-      return; 
-    }
-
+    if (!githubConfig.token || githubConfig.token.length < 10) { navigateToProfile(); return; }
     setBuildSteps([]);
     setBuildStatus({ status: 'pushing', message: 'Initializing Cloud Repository...' });
-    
     try {
-      const sanitizedName = (projectConfig.appName || 'OneClickApp')
-        .toLowerCase()
-        .replace(/[^a-z0-9]/g, '-')
-        .replace(/-+/g, '-')
-        .replace(/^-|-$/g, '');
-        
+      const sanitizedName = (projectConfig.appName || 'OneClickApp').toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
       const finalRepoName = `${sanitizedName}-studio`;
       const owner = await github.current.createRepo(githubConfig.token, finalRepoName);
-      
-      const updatedConfig = { 
-        ...githubConfig, 
-        owner: owner, 
-        repo: finalRepoName 
-      };
-      
+      const updatedConfig = { ...githubConfig, owner, repo: finalRepoName };
       setGithubConfig(updatedConfig);
       if (user) await db.updateGithubConfig(user.id, updatedConfig);
-
       setBuildStatus({ status: 'pushing', message: 'Syncing source code...' });
       await github.current.pushToGithub(updatedConfig, projectFiles, projectConfig);
-      
       setBuildStatus({ status: 'building', message: 'Compiling Android Binary...' });
       const checkInterval = setInterval(async () => {
         const runDetails = await github.current.getRunDetails(updatedConfig);
@@ -193,15 +168,13 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
           clearInterval(checkInterval);
           const details = await github.current.getLatestApk(updatedConfig);
           if (details) setBuildStatus({ status: 'success', message: 'Done!', apkUrl: details.downloadUrl, webUrl: details.webUrl });
-          else setBuildStatus({ status: 'error', message: 'Build completed but artifact not found.' });
+          else setBuildStatus({ status: 'error', message: 'Artifact not found.' });
         } else if (runDetails?.jobs?.[0]?.conclusion === 'failure') {
           clearInterval(checkInterval);
           setBuildStatus({ status: 'error', message: 'Build process failed.' });
         }
       }, 5000);
-    } catch (e: any) { 
-      setBuildStatus({ status: 'error', message: e.message || "Build failed." }); 
-    }
+    } catch (e: any) { setBuildStatus({ status: 'error', message: e.message || "Build failed." }); }
   };
 
   const handleSecureDownload = async () => {

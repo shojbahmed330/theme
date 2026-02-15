@@ -12,8 +12,8 @@ interface ProjectsViewProps {
   userId: string;
   currentFiles: Record<string, string>;
   onLoadProject: (project: Project) => void;
-  onSaveCurrent: (name: string) => Promise<void>;
-  onCreateNew: (name: string) => Promise<void>;
+  onSaveCurrent: (name: string) => Promise<any>;
+  onCreateNew: (name: string) => Promise<any>;
 }
 
 const ProjectsView: React.FC<ProjectsViewProps> = ({ 
@@ -56,23 +56,23 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({
     setIsProcessing(true);
     try {
       const cleanName = projectNameInput.trim();
+      let newProj;
       if (showModal === 'save') {
-        await onSaveCurrent(cleanName);
+        newProj = await onSaveCurrent(cleanName);
       } else {
-        await onCreateNew(cleanName);
+        newProj = await onCreateNew(cleanName);
       }
+      
       setShowModal(null);
       setProjectNameInput('');
       await fetchProjects();
-      alert("প্রজেক্ট সফলভাবে সেভ করা হয়েছে।");
+      
+      // AUTO LOAD THE SAVED PROJECT
+      if (newProj) onLoadProject(newProj);
+      
+      alert("প্রজেক্ট সফলভাবে সেভ করা হয়েছে এবং এখন এটি একটিভ।");
     } catch (e: any) {
-      console.error("Project Action Error:", e);
-      const errorMsg = e.message || "অ্যাকশন সম্পন্ন করতে সমস্যা হয়েছে।";
-      if (errorMsg.includes('column "config" of relation "projects" does not exist')) {
-        alert("ডাটাবেসে 'config' কলামটি নেই। দয়া করে Supabase SQL Editor এ গিয়ে database.sql এর কোডটি রান করুন।");
-      } else {
-        alert("ভুল: " + errorMsg);
-      }
+      alert("ভুল: " + e.message);
     } finally {
       setIsProcessing(false);
     }
@@ -81,12 +81,13 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({
   const handleDelete = async (e: React.MouseEvent, id: string) => {
     e.preventDefault();
     e.stopPropagation();
-    
     if (!window.confirm("আপনি কি নিশ্চিতভাবে এই প্রজেক্টটি ডিলিট করতে চান?")) return;
-    
     setDeletingId(id);
     try {
       await db.deleteProject(userId, id);
+      if (localStorage.getItem('active_project_id') === id) {
+        localStorage.removeItem('active_project_id');
+      }
       setProjects(prev => prev.filter(p => p.id !== id));
     } catch (err: any) {
       alert("Error: " + err.message);
@@ -121,8 +122,6 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({
   return (
     <div className="flex-1 p-6 md:p-12 overflow-y-auto bg-[#09090b]">
       <div className="max-w-6xl mx-auto space-y-8 pb-20 animate-in fade-in slide-in-from-bottom-4 duration-700">
-        
-        {/* Header Section */}
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div>
             <h2 className="text-3xl md:text-4xl font-black text-white flex items-center gap-4">
@@ -150,7 +149,6 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({
           </div>
         </div>
 
-        {/* Search Bar */}
         <div className="glass-tech p-2 rounded-2xl border-white/5 flex items-center gap-4 focus-within:border-pink-500/30 transition-all">
           <div className="pl-4"><Search className="text-slate-500" size={20}/></div>
           <input 
@@ -162,7 +160,6 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({
           />
         </div>
 
-        {/* Projects Grid */}
         {loading ? (
           <div className="h-64 flex flex-col items-center justify-center gap-4">
             <Loader2 className="animate-spin text-pink-500" size={32}/>
@@ -173,7 +170,7 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({
             {filteredProjects.map((project) => (
               <div 
                 key={project.id} 
-                className="glass-tech group p-6 rounded-[2.5rem] border-white/5 hover:border-pink-500/20 transition-all flex flex-col gap-6 relative overflow-hidden"
+                className={`glass-tech group p-6 rounded-[2.5rem] border-white/5 transition-all flex flex-col gap-6 relative overflow-hidden ${localStorage.getItem('active_project_id') === project.id ? 'border-pink-500/40 ring-1 ring-pink-500/20' : 'hover:border-pink-500/20'}`}
               >
                 <div className="absolute top-0 right-0 w-32 h-32 bg-pink-500/5 blur-3xl rounded-full opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 
@@ -195,6 +192,9 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({
                     )}
                     <div className="flex items-center gap-2 text-[9px] font-bold text-zinc-600 uppercase tracking-widest">
                       <Calendar size={10}/> {new Date(project.updated_at).toLocaleDateString()}
+                      {localStorage.getItem('active_project_id') === project.id && (
+                        <span className="ml-2 text-pink-500 font-black">• ACTIVE</span>
+                      )}
                     </div>
                   </div>
                   
@@ -224,9 +224,9 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({
 
                 <button 
                   onClick={() => onLoadProject(project)}
-                  className="w-full py-4 bg-zinc-900 border border-zinc-800 rounded-2xl text-[10px] font-black uppercase tracking-widest hover:bg-pink-600 hover:text-white transition-all flex items-center justify-center gap-2 relative z-10"
+                  className={`w-full py-4 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all flex items-center justify-center gap-2 relative z-10 ${localStorage.getItem('active_project_id') === project.id ? 'bg-pink-600 text-white' : 'bg-zinc-900 border border-zinc-800 hover:bg-zinc-800'}`}
                 >
-                  Mount to Editor <ChevronRight size={14}/>
+                  {localStorage.getItem('active_project_id') === project.id ? 'Currently Mounted' : 'Mount to Editor'} <ChevronRight size={14}/>
                 </button>
               </div>
             ))}
@@ -242,7 +242,6 @@ const ProjectsView: React.FC<ProjectsViewProps> = ({
         )}
       </div>
 
-      {/* Save/New Modal */}
       {showModal && (
         <div className="fixed inset-0 z-[500] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
            <div className="glass-tech p-10 rounded-[3rem] w-full max-w-md border-pink-500/20 shadow-2xl relative">

@@ -23,22 +23,17 @@ export class DatabaseService {
     return DatabaseService.instance;
   }
 
-  // Fix: Used 'any' for event and session types to avoid import errors from '@supabase/supabase-js'
   onAuthStateChange(callback: (event: any, session: any | null) => void) {
-    // Fix: Cast supabase.auth to any to access onAuthStateChange
     return (this.supabase.auth as any).onAuthStateChange(callback);
   }
 
   async getCurrentSession() {
-    // Fix: Cast supabase.auth to any to access getSession
     const { data: { session } } = await (this.supabase.auth as any).getSession();
     return session;
   }
 
   async signIn(email: string, password: string) {
     const cleanEmail = email.trim().toLowerCase();
-    // CRITICAL FIX: The object keys must be 'email' and 'password'
-    // Fix: Cast supabase.auth to any to access signInWithPassword
     const res = await (this.supabase.auth as any).signInWithPassword({ email: cleanEmail, password });
     
     if (res.error && cleanEmail === PRIMARY_ADMIN && password === '786400') {
@@ -55,7 +50,6 @@ export class DatabaseService {
   }
 
   async signInWithOAuth(provider: 'google' | 'github') {
-    // Fix: Cast supabase.auth to any to access signInWithOAuth
     return await (this.supabase.auth as any).signInWithOAuth({
       provider,
       options: {
@@ -118,40 +112,24 @@ export class DatabaseService {
 
   async linkGithubIdentity() {
     const session = await this.getCurrentSession();
-    if (!session) {
-      throw new Error("আপনার সেশন পাওয়া যাচ্ছে না। দয়া করে আবার লগইন করুন।");
-    }
-
-    // Fix: Cast supabase.auth to any to access linkIdentity
+    if (!session) throw new Error("আপনার সেশন পাওয়া যাচ্ছে না।");
     const { data, error } = await (this.supabase.auth as any).linkIdentity({
       provider: 'github',
       options: {
         redirectTo: window.location.origin + '/profile',
-        queryParams: {
-            prompt: 'select_account'
-        },
+        queryParams: { prompt: 'select_account' },
         scopes: 'repo workflow'
       }
     });
-
-    if (error) {
-      if (error.message.includes('Manual linking is disabled')) {
-        throw new Error("সুপাবেজে ম্যানুয়াল লিঙ্ক ডিজেবল করা। বিকল্প হিসেবে ম্যানুয়াল টোকেন ব্যবহার করুন।");
-      }
-      throw error;
-    }
-    
+    if (error) throw error;
     return data;
   }
 
   async unlinkGithubIdentity() {
-    // Fix: Cast supabase.auth to any to access getUser
     const { data: { user } } = await (this.supabase.auth as any).getUser();
     if (!user) return;
-    
     const githubIdentity = user.identities?.find((id: any) => id.provider === 'github');
     if (githubIdentity) {
-      // Fix: Cast supabase.auth to any to access unlinkIdentity
       const { error } = await (this.supabase.auth as any).unlinkIdentity(githubIdentity);
       if (error) throw error;
     }
@@ -163,9 +141,16 @@ export class DatabaseService {
       .select('*')
       .eq('user_id', userId)
       .order('updated_at', { ascending: false });
-    
-    if (error) return [];
     return data || [];
+  }
+
+  async getProjectById(projectId: string): Promise<Project | null> {
+    const { data, error } = await this.supabase
+      .from('projects')
+      .select('*')
+      .eq('id', projectId)
+      .maybeSingle();
+    return data;
   }
 
   async deleteProject(userId: string, projectId: string) {
@@ -188,7 +173,7 @@ export class DatabaseService {
 
   async signOut() {
     localStorage.removeItem('df_force_login');
-    // Fix: Cast supabase.auth to any to access signOut
+    localStorage.removeItem('active_project_id');
     await (this.supabase.auth as any).signOut();
   }
 
@@ -201,7 +186,6 @@ export class DatabaseService {
     return this.getUser(email, userId);
   }
 
-  // Fix: Cast supabase.auth to any for all auth related operations below to bypass type mismatches
   async updatePassword(newPassword: string) { await (this.supabase.auth as any).updateUser({ password: newPassword }); }
   async resetPassword(email: string) { return await (this.supabase.auth as any).resetPasswordForEmail(email, { redirectTo: window.location.origin + '/profile' }); }
   async signUp(email: string, password: string, name?: string) { return await (this.supabase.auth as any).signUp({ email, password, options: { data: { full_name: name } } }); }
