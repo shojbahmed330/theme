@@ -12,11 +12,22 @@ export enum AppMode {
   HELP = 'HELP'
 }
 
+export interface ProjectDatabaseConfig {
+  provider: 'supabase' | 'firebase' | 'none';
+  supabaseUrl?: string;
+  supabaseKey?: string;
+  firebaseConfig?: string;
+  enableAuth?: boolean;
+  authProviders?: string[]; // e.g., ['email', 'google']
+  serverlessRules?: string; // Description of logic/rules
+}
+
 export interface ProjectConfig {
   appName: string;
   packageName: string;
   icon?: string; // base64
   splash?: string; // base64
+  dbConfig?: ProjectDatabaseConfig;
 }
 
 export interface Project {
@@ -84,7 +95,7 @@ export interface Transaction {
   screenshot_url?: string;
   message?: string;
   created_at: string;
-  user_email?: string; // Virtual field for admin
+  user_email?: string;
 }
 
 export interface ActivityLog {

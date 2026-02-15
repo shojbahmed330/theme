@@ -1,45 +1,34 @@
 
 import { GoogleGenAI, Type } from "@google/genai";
-import { ChatMessage, Question } from "../types";
+import { ChatMessage, Question, ProjectDatabaseConfig } from "../types";
 
-const SYSTEM_PROMPT = `You are OneClick Studio, a World-Class Senior Lead Android Hybrid Developer & UI/UX Designer.
-Your absolute priority is to ensure that EVERY button, menu, and UI element you generate is 100% FUNCTIONAL and CLICKABLE in the preview.
+const SYSTEM_PROMPT = `You are OneClick Studio, a World-Class Senior Full-Stack Android Hybrid Developer.
+Your goal is to build COMPLETE WORKING SYSTEMS with Secure Serverless Logic and Multi-User Roles.
 
-### AMBIGUITY PROTOCOL (CRITICAL):
-- If a user's request is broad (e.g., "make a calculator", "build a login page", "create a weather app"), you MUST NOT generate code immediately.
-- Instead, you MUST use the "questions" array to provide 3-4 specific questions to narrow down the requirements (e.g., features, color theme, complexity).
-- Only proceed to generate files once the user provides details or explicitly says "just build it".
+### 1. TWO-IN-ONE ARCHITECTURE (USER & ADMIN):
+- For any data-driven app (E-commerce, Delivery, Booking), you MUST generate two interfaces within the same project:
+  - **User UI**: Public facing, clean, and intuitive.
+  - **Admin Panel**: Secure and hidden. Accessible via a specific button (e.g., 'Staff Login') or a long-press on the app logo.
+  - **Admin Features**: CRUD operations on the database, viewing user submissions, and updating statuses.
 
-### CRITICAL MOBILE RESPONSIVENESS RULES:
-- **SAFE AREAS**: Use 'pt-[env(safe-area-inset-top)]' or ensure layouts don't collide with the top status bar (network, time).
-- **VIEWPORT HEIGHT**: Always use 'h-[100dvh]' or 'min-h-[100dvh]' for main containers to ensure they fit exactly within any mobile screen.
-- **NO VERTICAL OVERFLOW**: Ensure calculators, login forms, and tools fit within the screen without scrolling unless necessary.
-- **BENTO & FLEX**: Use Flexbox ('flex-col') and 'justify-between' to distribute UI elements evenly across the screen.
+### 2. MANAGED DATABASE BRIDGE:
+- If Supabase/Firebase credentials are provided in the context, you MUST use them to initialize the backend logic.
+- Do NOT use localStorage if DB credentials are present.
+- Use 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js' for Supabase integration.
+- Initialize at the very top of your script block: const supabase = window.supabase.createClient(URL, KEY);
 
-### CRITICAL FUNCTIONALITY RULES:
-- **NO PLACEHOLDERS**: Never write "// logic here" or "alert('clicked')". Write the actual production logic.
-- **CLICKABLE INTERFACES**: Every button or menu item MUST have an event listener.
-- **GLOBAL SCOPE**: Define functions in the global scope (window.functionName).
-- **USER FEEDBACK**: Implement haptic feedback simulation (window.NativeBridge.vibrate).
+### 3. SECURE SERVERLESS LOGIC:
+- Follow the 'serverlessRules' provided by the user. 
+- Implement these rules as JavaScript functions within the app code to validate data BEFORE it hits the database.
+- Example: If a rule says "Calculate 10% discount", implement: const discountedPrice = price * 0.9.
 
-### RESPONSE JSON SCHEMA:
-{
-  "answer": "Professional explanation of what you are doing or asking.",
-  "thought": "Internal reasoning.",
-  "questions": [
-    {
-      "id": "unique_id",
-      "text": "The question text?",
-      "type": "single",
-      "options": [{"id": "opt1", "label": "Option 1", "subLabel": "Details"}]
-    }
-  ],
-  "files": { "index.html": "..." }
-}
+### 4. AUTHENTICATION GATEWAY:
+- If 'enableAuth' is true, create a functional Login/Register screen using the provider's Auth API.
+- Protect the Admin Panel and sensitive user data with session checks.
 
-### DESIGN PHILOSOPHY:
-- Visuals: Glassmorphism, Bento Box, Soft Shadows.
-- Mobile UX: Large touch targets (min 44x44px).`;
+### RESPONSE FORMAT:
+- Return valid JSON with "answer" (in Bengali/Bangla), "thought", and "files" (index.html, styles.css, app.js).
+- Ensure high-end aesthetics: Bento-box, glassmorphism, and haptic feedback via window.NativeBridge.vibrate().`;
 
 export interface GenerationResult {
   files?: Record<string, string>;
@@ -54,64 +43,60 @@ export class GeminiService {
     currentFiles: Record<string, string> = {}, 
     history: ChatMessage[] = [],
     image?: { data: string; mimeType: string },
+    dbConfig?: ProjectDatabaseConfig,
     usePro: boolean = false
   ): Promise<GenerationResult> {
     const key = process.env.API_KEY;
-    
-    if (!key || key === "undefined") {
-      throw new Error("API_KEY not found in environment. Please redeploy the app on Vercel after setting the environment variable.");
-    }
+    if (!key || key === "undefined") throw new Error("API_KEY not found.");
 
     const ai = new GoogleGenAI({ apiKey: key });
     const modelName = usePro ? 'gemini-3-pro-preview' : 'gemini-3-flash-preview';
 
-    const parts: any[] = [
-      { text: `User Prompt: ${prompt}` },
-      { text: `Current Modular Files: ${JSON.stringify(currentFiles)}` },
-      { text: `History: ${JSON.stringify(history.slice(-10))}` }
+    // Constructing the Full-Stack Context for the AI
+    const dbContext = dbConfig && dbConfig.provider !== 'none' 
+      ? `\n[FULL-STACK CONTEXT]:
+- Provider: ${dbConfig.provider}
+- Auth Enabled: ${dbConfig.enableAuth ? 'YES' : 'NO'}
+- URL: ${dbConfig.supabaseUrl || 'N/A'}
+- Key: ${dbConfig.supabaseKey ? 'PRESENT' : 'MISSING'}
+- Rules: ${dbConfig.serverlessRules || 'Standard CRUD'}
+- Requirement: Build a Two-in-One app with a hidden Admin Panel using these credentials.`
+      : "\n[CONTEXT]: No cloud DB yet. Use localStorage for demo, but suggest connecting a database in settings.";
+
+    const contents = [
+      { parts: [
+        { text: `User Prompt: ${prompt}` },
+        { text: `System Context: ${dbContext}` },
+        { text: `Existing Files: ${JSON.stringify(currentFiles)}` },
+        { text: `Recent History: ${JSON.stringify(history.slice(-5))}` }
+      ]}
     ];
 
     if (image) {
-      parts.push({
-        inlineData: {
-          data: image.data,
-          mimeType: image.mimeType
-        }
-      });
+      contents[0].parts.push({
+        inlineData: { data: image.data, mimeType: image.mimeType }
+      } as any);
     }
 
     try {
       const response = await ai.models.generateContent({
         model: modelName,
-        contents: { parts },
+        contents,
         config: {
           systemInstruction: SYSTEM_PROMPT,
           responseMimeType: "application/json"
         }
       });
       
-      const text = response.text;
-      if (!text) throw new Error("Empty response from AI.");
-
-      try {
-        const parsed = JSON.parse(text);
-        // Safety: Ensure questions and files are handled correctly even if empty
-        return {
-          answer: parsed.answer || "Processing request...",
-          thought: parsed.thought || "",
-          questions: Array.isArray(parsed.questions) ? parsed.questions : [],
-          files: typeof parsed.files === 'object' ? parsed.files : undefined
-        };
-      } catch (e) {
-        const jsonMatch = text.match(/\{[\s\S]*\}/);
-        if (jsonMatch) return JSON.parse(jsonMatch[0]);
-        throw new Error("Failed to parse AI response as JSON.");
-      }
-    } catch (error: any) {
-      console.error(`Gemini Service Error (${modelName}):`, error);
-      if (usePro && !error.message?.includes('API_KEY_INVALID')) {
-        return this.generateWebsite(prompt, currentFiles, history, image, false);
-      }
+      const parsed = JSON.parse(response.text);
+      return {
+        answer: parsed.answer || "আপনার ফুল-স্ট্যাক অ্যাপটি প্রস্তুত করা হয়েছে।",
+        thought: parsed.thought || "",
+        questions: parsed.questions || [],
+        files: parsed.files
+      };
+    } catch (error) {
+      console.error("Gemini Generation Error:", error);
       throw error;
     }
   }

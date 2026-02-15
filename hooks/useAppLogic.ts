@@ -12,12 +12,13 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedImage, setSelectedImage] = useState<{ data: string; mimeType: string; preview: string } | null>(null);
   const [projectFiles, setProjectFiles] = useState<Record<string, string>>({
-    'index.html': '<div style="background:#09090b; color:#f4f4f5; height:100vh; display:flex; align-items:center; justify-content:center; font-family:sans-serif; text-align:center; padding: 20px;"><h1>OneClick Studio</h1></div>'
+    'index.html': '<div style="background:#09090b; color:#f4f4f5; height:100vh; display:flex; align-items:center; justify-content:center; font-family:sans-serif; text-align:center; padding: 20px;"><h1>OneClick Studio</h1><p>Ready for Full-Stack Engineering.</p></div>'
   });
   
   const [projectConfig, setProjectConfig] = useState<ProjectConfig>({
     appName: 'OneClickApp',
-    packageName: 'com.oneclick.studio'
+    packageName: 'com.oneclick.studio',
+    dbConfig: { provider: 'none' }
   });
 
   const [selectedFile, setSelectedFile] = useState('index.html');
@@ -31,7 +32,6 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
   const db = DatabaseService.getInstance();
   const github = useRef(new GithubService());
 
-  // Restore Project on Mount/Reload
   useEffect(() => {
     if (user && currentProjectId) {
       db.getProjectById(currentProjectId).then(p => {
@@ -100,13 +100,11 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
     setIsGenerating(true);
     try {
       const usePro = user ? user.tokens > 100 : false;
-      const res = await gemini.current.generateWebsite(text, projectFiles, messages, currentImage ? { data: currentImage.data, mimeType: currentImage.mimeType } : undefined, usePro);
+      const res = await gemini.current.generateWebsite(text, projectFiles, messages, currentImage ? { data: currentImage.data, mimeType: currentImage.mimeType } : undefined, projectConfig.dbConfig, usePro);
 
       if (res.files && Object.keys(res.files).length > 0) {
         const newFiles = { ...projectFiles, ...res.files };
         setProjectFiles(newFiles);
-        
-        // AUTO-SYNC TO DATABASE IF PROJECT IS ACTIVE
         if (user && currentProjectId) {
           await db.updateProject(user.id, currentProjectId, newFiles, projectConfig);
         }
@@ -115,7 +113,7 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
       setMessages(prev => [...prev, { 
         id: (Date.now() + 1).toString(), 
         role: 'assistant', 
-        content: res.answer || "Processing complete.", 
+        content: res.answer || "Backend sync complete.", 
         timestamp: Date.now(),
         questions: Array.isArray(res.questions) ? res.questions : [],
         thought: res.thought || "",
@@ -127,7 +125,7 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
         if (updated) setUser(updated); 
       }
     } catch (e: any) { 
-      setMessages(prev => [...prev, { id: Date.now().toString(), role: 'assistant', content: `Error: ${e.message}`, timestamp: Date.now() }]); 
+      setMessages(prev => [...prev, { id: Date.now().toString(), role: 'assistant', content: `Neural Error: ${e.message}`, timestamp: Date.now() }]); 
     } finally { setIsGenerating(false); }
   };
 
@@ -158,23 +156,31 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
       const updatedConfig = { ...githubConfig, owner, repo: finalRepoName };
       setGithubConfig(updatedConfig);
       if (user) await db.updateGithubConfig(user.id, updatedConfig);
-      setBuildStatus({ status: 'pushing', message: 'Syncing source code...' });
+      
+      setBuildStatus({ status: 'pushing', message: 'Syncing Full-Stack Code & Assets...' });
       await github.current.pushToGithub(updatedConfig, projectFiles, projectConfig);
-      setBuildStatus({ status: 'building', message: 'Compiling Android Binary...' });
+      
+      setBuildStatus({ status: 'building', message: 'Compiling Signed Release APK...' });
       const checkInterval = setInterval(async () => {
         const runDetails = await github.current.getRunDetails(updatedConfig);
         if (runDetails?.jobs?.[0]?.steps) setBuildSteps(runDetails.jobs[0].steps);
+        
         if (runDetails?.jobs?.[0]?.status === 'completed') {
           clearInterval(checkInterval);
           const details = await github.current.getLatestApk(updatedConfig);
-          if (details) setBuildStatus({ status: 'success', message: 'Done!', apkUrl: details.downloadUrl, webUrl: details.webUrl });
-          else setBuildStatus({ status: 'error', message: 'Artifact not found.' });
+          if (details) {
+            setBuildStatus({ status: 'success', message: 'Production APK Ready!', apkUrl: details.downloadUrl, webUrl: details.webUrl });
+          } else {
+            setBuildStatus({ status: 'error', message: 'Artifact compilation success but file missing.' });
+          }
         } else if (runDetails?.jobs?.[0]?.conclusion === 'failure') {
           clearInterval(checkInterval);
-          setBuildStatus({ status: 'error', message: 'Build process failed.' });
+          setBuildStatus({ status: 'error', message: 'Build failed at compilation stage.' });
         }
       }, 5000);
-    } catch (e: any) { setBuildStatus({ status: 'error', message: e.message || "Build failed." }); }
+    } catch (e: any) { 
+      setBuildStatus({ status: 'error', message: e.message || "Uplink failure." }); 
+    }
   };
 
   const handleSecureDownload = async () => {
@@ -183,7 +189,9 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
     try {
       const blob = await github.current.downloadArtifact(githubConfig, buildStatus.apkUrl);
       const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url; a.download = `${githubConfig.repo}-build.zip`;
+      const a = document.createElement('a'); a.href = url; 
+      const fileName = `${projectConfig.appName || 'app'}-production.zip`;
+      a.download = fileName;
       document.body.appendChild(a); a.click();
     } catch (e: any) { alert(e.message); } finally { setIsDownloading(false); }
   };
