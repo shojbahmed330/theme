@@ -32,6 +32,7 @@ const AppContent: React.FC = () => {
   const [liveProject, setLiveProject] = useState<Project | null>(null);
   const [liveLoading, setLiveLoading] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+  const onboardingCheckedRef = useRef(false);
 
   const navigateTo = (newPath: string, newMode?: AppMode) => {
     try { if (window.location.pathname !== newPath) window.history.pushState({}, '', newPath); } catch (e) {}
@@ -61,10 +62,14 @@ const AppContent: React.FC = () => {
     return () => window.removeEventListener('popstate', handlePopState);
   }, [path]);
 
-  // Handle first-time login onboarding
+  // Handle first-time login onboarding - ensuring it only triggers once per session
   useEffect(() => {
-    if (user && !localStorage.getItem(`onboarding_done_${user.id}`)) {
-      setShowOnboarding(true);
+    if (user && !onboardingCheckedRef.current) {
+      const isDone = localStorage.getItem(`onboarding_done_${user.id}`);
+      if (!isDone) {
+        setShowOnboarding(true);
+      }
+      onboardingCheckedRef.current = true;
     }
   }, [user]);
 
