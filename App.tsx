@@ -12,6 +12,7 @@ import Header from './layout/Header.tsx';
 import MobileNav from './layout/MobileNav.tsx';
 
 // View Imports
+import LandingPage from './landing/LandingPage.tsx';
 import ScanPage from './biometric/ScanPage.tsx';
 import AuthPage from './auth/AuthPage.tsx';
 import AdminLoginPage from './auth/AdminLoginPage.tsx';
@@ -92,8 +93,20 @@ const AppContent: React.FC = () => {
     );
   }
 
-  if (!user) return showScan ? <ScanPage onFinish={() => setShowScan(false)} /> : <AuthPage onLoginSuccess={(u) => { setUser(u); navigateTo('/profile', AppMode.PROFILE); }} />;
+  // Handle unauthenticated routes
+  if (!user) {
+    if (path === '/login') {
+      return showScan ? (
+        <ScanPage onFinish={() => setShowScan(false)} />
+      ) : (
+        <AuthPage onLoginSuccess={(u) => { setUser(u); navigateTo('/profile', AppMode.PROFILE); }} />
+      );
+    }
+    // Default to Landing Page for any other route if not logged in
+    return <LandingPage onGetStarted={() => navigateTo('/login')} />;
+  }
 
+  // Logged-in application shell
   return (
     <div className="h-[100dvh] flex flex-col text-slate-100 overflow-hidden">
       <Header user={user} path={path} mode={mode} navigateTo={navigateTo} />

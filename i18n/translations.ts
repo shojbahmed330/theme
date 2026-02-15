@@ -9,7 +9,30 @@ export const translations = {
       profile: "PROFILE",
       admin: "ADMIN HQ",
       help: "HELP",
-      settings: "SETTINGS"
+      settings: "SETTINGS",
+      login: "LOGIN",
+      get_started: "GET STARTED"
+    },
+    landing: {
+      hero_badge: "Next-Gen Android AI App Engine",
+      hero_title: "Build Your Dream Android App with",
+      hero_title_accent: "AI in Minutes",
+      hero_subtitle: "The world's first AI-powered system for building production-ready hybrid Android apps. No coding skills required.",
+      start_building: "Start Building Now",
+      features_title: "Powerful Engineering",
+      features_subtitle: "Everything you need to go from idea to APK.",
+      feature_1: "Neural Code Engine",
+      feature_1_desc: "Describe your app and watch as our AI generates clean, production-ready code.",
+      feature_2: "Cloud Build & APK",
+      feature_2_desc: "Compile your project into a real Android APK in seconds using our cloud infrastructure.",
+      feature_3: "GitHub Integration",
+      feature_3_desc: "Automatically sync your source code to GitHub and manage version control effortlessly.",
+      pricing_title: "Flexible Token Plans",
+      pricing_subtitle: "Choose the package that fits your development needs.",
+      reviews_title: "Developer Feedback",
+      reviews_subtitle: "Join thousands of builders already using OneClick Studio.",
+      review_1: "This is a game changer for non-developers. I built my first utility app in 10 minutes!",
+      review_2: "The GitHub sync and cloud build features are incredibly smooth. Highly recommended."
     },
     common: {
       tokens: "Tokens",
@@ -106,7 +129,30 @@ export const translations = {
       profile: "প্রোফাইল",
       admin: "এডমিন HQ",
       help: "সাহায্য",
-      settings: "সেটিংস"
+      settings: "সেটিংস",
+      login: "লগইন",
+      get_started: "শুরু করুন"
+    },
+    landing: {
+      hero_badge: "নেক্সট-জেন অ্যান্ড্রয়েড AI অ্যাপ ইঞ্জিন",
+      hero_title: "আপনার স্বপ্নের অ্যান্ড্রয়েড অ্যাপ তৈরি করুন",
+      hero_title_accent: "AI দিয়ে মাত্র কয়েক মিনিটে",
+      hero_subtitle: "বিশ্বের প্রথম AI চালিত সিস্টেম যা আপনার আইডিয়াকে সরাসরি অ্যান্ড্রয়েড APK তে রূপান্তর করে। কোন কোডিং অভিজ্ঞতার প্রয়োজন নেই।",
+      start_building: "এখনই তৈরি শুরু করুন",
+      features_title: "শক্তিশালী ইঞ্জিনিয়ারিং",
+      features_subtitle: "আইডিয়া থেকে APK পর্যন্ত আপনার যা প্রয়োজন সব এখানে আছে।",
+      feature_1: "নিউরোল কোড ইঞ্জিন",
+      feature_1_desc: "আপনার অ্যাপের বর্ণনা দিন এবং দেখুন কীভাবে আমাদের AI ক্লিন এবং প্রোডাকশন কোড তৈরি করে।",
+      feature_2: "ক্লাউড বিল্ড ও APK",
+      feature_2_desc: "আমাদের ক্লাউড ইনফ্রাস্ট্রাকচার ব্যবহার করে কয়েক সেকেন্ডে আপনার প্রজেক্টকে রিয়েল অ্যান্ড্রয়েড APK তে রূপান্তর করুন।",
+      feature_3: "গিটহাব ইন্টিগ্রেশন",
+      feature_3_desc: "অটোমেটিকভাবে আপনার কোড গিটহাবে সেভ করুন এবং ভার্সন কন্ট্রোল পরিচালনা করুন খুব সহজে।",
+      pricing_title: "ফ্লেক্সিবল টোকেন প্ল্যান",
+      pricing_subtitle: "আপনার প্রয়োজন অনুযায়ী সেরা প্যাকেজটি বেছে নিন।",
+      reviews_title: "ডেভেলপার ফিডব্যাক",
+      reviews_subtitle: "ইতিমধ্যে হাজার হাজার মানুষ ওয়ান-ক্লিক স্টুডিও ব্যবহার করছেন।",
+      review_1: "যারা কোডিং জানেন না তাদের জন্য এটি সেরা। আমি ১০ মিনিটে আমার প্রথম অ্যাপ বানিয়েছি!",
+      review_2: "গিটহাব সিঙ্ক এবং ক্লাউড বিল্ড ফিচারগুলো অবিশ্বাস্যভাবে স্মুথ। অবশ্যই ট্রাই করা উচিত।"
     },
     common: {
       tokens: "টোকেন",
@@ -168,7 +214,7 @@ export const translations = {
       },
       history: "সাম্প্রতিক হিস্ট্রি",
       no_records: "কোন তথ্য পাওয়া যায়নি।",
-      security: "সিকিউরিটি সেটিংস",
+      security: "সিকিউরিটি সেটিিংস",
       old_pass: "পুরাতন পাসওয়ার্ড",
       new_pass: "নতুন পাসওয়ার্ড",
       update_pass: "পাসওয়ার্ড আপডেট করুন"
@@ -203,7 +249,30 @@ export const translations = {
       profile: "प्रोफ़ाइल",
       admin: "एडमिन मुख्यालय",
       help: "सहायता",
-      settings: "सेटिंग्स"
+      settings: "सेटिंग्स",
+      login: "लॉगिन",
+      get_started: "शुरू करें"
+    },
+    landing: {
+      hero_badge: "नेक्स्ट-जेन एंड्रॉइड AI ऐप इंजन",
+      hero_title: "अपना सपनों का एंड्रॉइड ऐप बनाएं",
+      hero_title_accent: "AI के साथ मिनटों में",
+      hero_subtitle: "दुनिया का पहला AI-संचालित सिस्टम जो आपके विचारों को सीधे एंड्रॉइड APK में बदल देता है। कोई कोडिंग कौशल आवश्यक नहीं है।",
+      start_building: "अभी बनाना शुरू करें",
+      features_title: "शक्तिशाली इंजीनियरिंग",
+      features_subtitle: "विचार से लेकर APK तक आपको जो कुछ भी चाहिए वह सब यहाँ है।",
+      feature_1: "न्यूरल कोड इंजन",
+      feature_1_desc: "अपने ऐप का वर्णन करें और देखें कि हमारा AI कैसे क्लीन और प्रोडक्शन-रेडी कोड बनाता है।",
+      feature_2: "क्लाउड बिल्ड और APK",
+      feature_2_desc: "हमारे क्लाउड इंफ्रास्ट्रक्चर का उपयोग करके सेकंडों में अपने प्रोजेक्ट को एंड्रॉइड APK में बदलें।",
+      feature_3: "गिटहब इंटीग्रेशन",
+      feature_3_desc: "स्वचालित रूप से अपने सोर्स कोड को गिटहब पर सहेजें और आसानी से संस्करण नियंत्रण प्रबंधित करें।",
+      pricing_title: "लचीली टोकन योजनाएं",
+      pricing_subtitle: "अपनी विकास आवश्यकताओं के अनुसार सर्वोत्तम पैकेज चुनें।",
+      reviews_title: "डेवलपर फीडबैक",
+      reviews_subtitle: "पहले से ही हजारों लोग वनक्लिक स्टूडियो का उपयोग कर रहे हैं।",
+      review_1: "कोडिंग नहीं जानने वालों के लिए यह सबसे अच्छा है। मैंने 10 मिनट में अपना पहला ऐप बनाया!",
+      review_2: "गिटहब सिंक और क्लाउड बिल्ड फीचर्स बहुत सहज हैं। इसकी अत्यधिक अनुशंसा की जाती है।"
     },
     common: {
       tokens: "टोकन",
@@ -233,8 +302,8 @@ export const translations = {
       please_wait: "कृपया प्रतीक्षा करें",
       live_link: "लाइव मोबाइल लिंक",
       uplink_title: "मोबाइल अपलिंक",
-      uplink_desc: "अपने डिवाइस पर नेटिव फीचर्स का परीक्षण करें",
-      scan_tip: "टिप: सीधे ब्राउज़र में जीपीएस, कैमरा और हैप्टिक्स एक्सेस करने के लिए अपने फोन के कैमरे से स्कैन करें।"
+      uplink_desc: "पसंदीदा नेटिव सुविधाओं का परीक्षण करें",
+      scan_tip: "टिप: अपने फोन के कैमरे से स्कैन करें और जीपीएस, कैमरा आदि एक्सेस करें।"
     },
     projects: {
       title: "मेरा कार्यस्थान",
