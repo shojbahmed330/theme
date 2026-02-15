@@ -78,7 +78,7 @@ const Questionnaire: React.FC<{
           <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">
             {q.type === 'single' ? 'Pick one option' : 'Multiple choices allowed'}
           </span>
-          <h4 className="text-sm font-black text-white leading-snug tracking-tight">{q.text}</h4>
+          <div className="text-sm font-black text-white leading-snug tracking-tight">{q.text}</div>
         </div>
 
         <div className="space-y-2">
@@ -177,7 +177,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({
     <section className={`w-full lg:w-[520px] border-r border-white/5 flex flex-col bg-[#09090b] h-full relative ${mobileTab === 'preview' ? 'hidden lg:flex' : 'flex'}`}>
       <div 
         ref={scrollRef}
-        className="flex-1 p-6 overflow-y-auto space-y-10 pt-24 md:pt-6 pb-64 scroll-smooth custom-scrollbar"
+        className="flex-1 p-6 overflow-y-auto space-y-10 pt-28 md:pt-6 pb-44 scroll-smooth custom-scrollbar"
       >
         {messages.length > 0 ? messages.map((m, idx) => (
           <div 
@@ -287,7 +287,7 @@ const ChatBox: React.FC<ChatBoxProps> = ({
           </div>
         )}
 
-        <div className="relative bg-black/40 backdrop-blur-3xl border border-white/10 rounded-[2rem] p-3 flex items-center gap-3 mb-24 md:mb-0 shadow-2xl focus-within:border-pink-500/40 transition-all">
+        <div className="relative bg-black/40 backdrop-blur-3xl border border-white/10 rounded-[2rem] p-3 flex items-center gap-3 mb-6 md:mb-0 shadow-2xl focus-within:border-pink-500/40 transition-all">
            <input 
              type="file" 
              ref={fileInputRef} 

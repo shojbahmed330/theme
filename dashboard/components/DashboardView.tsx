@@ -58,8 +58,8 @@ const DashboardView: React.FC<DashboardViewProps> = (props) => {
           />
         </div>
 
-        {/* --- MOBILE UI CONTROLS --- */}
-        <div className="lg:hidden fixed top-24 left-1/2 -translate-x-1/2 z-[200] flex gap-3 items-center">
+        {/* --- MOBILE UI CONTROLS (FIXED AT TOP) --- */}
+        <div className="lg:hidden fixed top-[72px] left-1/2 -translate-x-1/2 z-[200] flex gap-3 items-center">
             <div className="bg-black/60 backdrop-blur-3xl p-1.5 rounded-2xl border border-white/10 flex gap-1 shadow-2xl ring-1 ring-white/5">
               <button 
                 onClick={() => props.setMobileTab('chat')} 
