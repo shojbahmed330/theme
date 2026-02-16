@@ -1,13 +1,13 @@
 
 import { useState, useRef, useEffect } from 'react';
-import { GithubConfig, BuildStep, User as UserType, ProjectConfig, Project } from '../types';
+import { GithubConfig, BuildStep, User as UserType, ProjectConfig, Project, ChatMessage } from '../types';
 import { GeminiService } from '../services/geminiService';
 import { DatabaseService } from '../services/dbService';
 import { GithubService } from '../services/githubService';
 
 export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null) => void) => {
   const [currentProjectId, setCurrentProjectId] = useState<string | null>(localStorage.getItem('active_project_id'));
-  const [messages, setMessages] = useState<any[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [selectedImage, setSelectedImage] = useState<{ data: string; mimeType: string; preview: string } | null>(null);
@@ -48,7 +48,6 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
   const handleSend = async (extraData?: string) => {
     if ((!input.trim() && !selectedImage && !extraData) || isGenerating) return;
     
-    // Check tokens before starting
     if (user && user.tokens <= 0 && !user.isAdmin) {
       setMessages(prev => [...prev, { 
         id: Date.now().toString(), 
@@ -62,6 +61,8 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
     const text = extraData || input; 
     const currentImage = selectedImage;
 
+    let updatedMessages: ChatMessage[] = [];
+
     if (extraData) {
       setMessages(prev => {
         const lastAsstIdx = [...prev].reverse().findIndex(m => m.role === 'assistant' && m.questions);
@@ -69,25 +70,35 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
           const actualIdx = prev.length - 1 - lastAsstIdx;
           const updated = [...prev];
           updated[actualIdx] = { ...updated[actualIdx], answersSummary: extraData };
+          updatedMessages = updated;
           return updated;
         }
         return prev;
       });
     } else {
-      setMessages(prev => [...prev, { 
+      const newUserMsg: ChatMessage = { 
         id: Date.now().toString(), 
         role: 'user', 
         content: text, 
         image: currentImage?.preview,
         timestamp: Date.now() 
-      }]);
+      };
+      setMessages(prev => [...prev, newUserMsg]);
+      updatedMessages = [...messages, newUserMsg];
       setInput(''); 
       setSelectedImage(null);
     }
 
     setIsGenerating(true);
     try {
-      const res = await gemini.current.generateWebsite(text, projectFiles, messages, currentImage ? { data: currentImage.data, mimeType: currentImage.mimeType } : undefined, projectConfig.dbConfig, false);
+      const res = await gemini.current.generateWebsite(
+        text, 
+        projectFiles, 
+        updatedMessages, 
+        currentImage ? { data: currentImage.data, mimeType: currentImage.mimeType } : undefined, 
+        projectConfig.dbConfig, 
+        false
+      );
 
       const hasNewFiles = res.files && Object.keys(res.files).length > 0;
       
@@ -98,7 +109,6 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
           await db.updateProject(user.id, currentProjectId, newFiles, projectConfig);
         }
         
-        // Use token ONLY if code was written
         if (user) { 
           const updatedUser = await db.useToken(user.id, user.email); 
           if (updatedUser) setUser(updatedUser); 
@@ -122,7 +132,6 @@ export const useAppLogic = (user: UserType | null, setUser: (u: UserType | null)
 
   const handleBuildAPK = async (navigateToProfile: () => void) => {
     if (!githubConfig.token || githubConfig.token.length < 10) { navigateToProfile(); return; }
-    // ... rest of the build logic remains same ...
   };
 
   const loadProject = (p: Project) => {
